@@ -1,13 +1,39 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Editor from '@monaco-editor/react';
 
 const App = () => {
   const [code, setCode] = useState('');
-  const [output] = useState('');
+  const [output, setOutput] = useState('');
+  const [debouncedCode, setDebouncedCode] = useState(code);
+  const [timeout, setTimeoutState] = useState(null);
 
   const handleEditorChange = value => {
     setCode(value);
+    if (timeout) clearTimeout(timeout);
+    setTimeoutState(
+      setTimeout(() => {
+        setDebouncedCode(value);
+      }, 1000)
+    );
   };
+
+  useEffect(() => {
+    const oldConsoleLog = console.log;
+    let outputData = '';
+    console.log = message => {
+      outputData += message + '\n';
+    };
+
+    try {
+      new Function(debouncedCode)();
+    } catch (error) {
+      outputData += `Error: ${error.message}\n`;
+    }
+
+    console.log = oldConsoleLog;
+
+    setOutput(outputData);
+  }, [debouncedCode]);
 
   return (
     <div className="flex">
