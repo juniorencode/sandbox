@@ -15,6 +15,11 @@ const App = () => {
         theme="vs-dark"
         value={code}
         onChange={handleEditorChange}
+        options={{
+          lineNumbers: 'off',
+          minimap: { enabled: false },
+          padding: { top: 20, bottom: 20 }
+        }}
       />
     </div>
   );
