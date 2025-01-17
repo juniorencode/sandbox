@@ -4,57 +4,36 @@ import Editor from '@monaco-editor/react';
 const App = () => {
   const [code, setCode] = useState('');
   const [output, setOutput] = useState('');
-  const [debouncedCode, setDebouncedCode] = useState(code);
-  const [timeout, setTimeoutState] = useState(null);
+  const [worker, setWorker] = useState(null);
+  const [timeoutId, setTimeoutId] = useState(null);
+
+  useEffect(() => {
+    const newWorker = new Worker(
+      new URL('./utilities/codeWorker.js', import.meta.url)
+    );
+    setWorker(newWorker);
+
+    return () => {
+      newWorker.terminate();
+    };
+  }, []);
 
   const handleEditorChange = value => {
     setCode(value);
-    if (timeout) clearTimeout(timeout);
-    setTimeoutState(
+
+    if (timeoutId) clearInterval(timeoutId);
+
+    setTimeoutId(
       setTimeout(() => {
-        setDebouncedCode(value);
-      }, 1000)
+        if (worker) {
+          worker.postMessage(value);
+          worker.onmessage = e => {
+            setOutput(e.data);
+          };
+        }
+      }, 200)
     );
   };
-
-  useEffect(() => {
-    const oldConsoleLog = console.log;
-    let outputData = '';
-
-    console.log = (...args) => {
-      const stack = new Error().stack || '';
-      const linesOutput = outputData.split('\n').length;
-      const line = stack.split('\n')[2].split(':').reverse()[1] - 2;
-
-      const formattedArgs = args
-        .map(arg => {
-          if (typeof arg === 'object' && arg !== null) {
-            return JSON.stringify(arg, null, 2);
-          }
-          if (typeof arg === 'number') return arg;
-          return `"${arg}"`;
-        })
-        .join(' ');
-
-      if (linesOutput < line) {
-        for (let i = linesOutput; i < line; i++) {
-          outputData += '\n';
-        }
-      }
-
-      outputData += formattedArgs + '\n';
-    };
-
-    try {
-      new Function(debouncedCode)();
-    } catch (error) {
-      outputData += `Error: ${error.message}\n`;
-    }
-
-    console.log = oldConsoleLog;
-
-    setOutput(outputData);
-  }, [debouncedCode]);
 
   return (
     <div className="flex">
