@@ -124,6 +124,15 @@ myDog.speak();
     setActiveTab(newTab.id);
   };
 
+  const removeTab = id => {
+    if (tabs.length <= 1) return;
+    const newTabs = tabs.filter(tab => tab.id !== id);
+    setTabs(newTabs);
+    if (activeTab === id) {
+      setActiveTab(newTabs[0].id);
+    }
+  };
+
   const handleEditorChange = value => {
     setCode(value);
 
@@ -180,7 +189,10 @@ myDog.speak();
                 className="group flex items-center justify-center gap-2 pl-4 pr-3 rounded-t-lg text-neutral-300 bg-[#212830]"
               >
                 <div>{tab.name}</div>
-                <button className="flex items-center justify-center mt-0.5 w-4 h-4 rounded-full hover:bg-[#464d5a]">
+                <button
+                  className="flex items-center justify-center mt-0.5 w-4 h-4 rounded-full hover:bg-[#464d5a]"
+                  onClick={() => removeTab(tab.id)}
+                >
                   <IoClose size={16} />
                 </button>
               </div>
