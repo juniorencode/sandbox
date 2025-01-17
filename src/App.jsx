@@ -26,12 +26,14 @@ const App = () => {
       const linesOutput = outputData.split('\n').length;
       const line = stack.split('\n')[2].split(':').reverse()[1] - 2;
 
+      oldConsoleLog(args);
       const formattedArgs = args
         .map(arg => {
           if (typeof arg === 'object' && arg !== null) {
             return JSON.stringify(arg, null, 2);
           }
-          return String(arg);
+          if (typeof arg === 'number') return arg;
+          return `"${arg}"`;
         })
         .join(' ');
 
@@ -64,7 +66,6 @@ const App = () => {
           value={code}
           onChange={handleEditorChange}
           options={{
-            lineNumbers: 'off',
             minimap: { enabled: false },
             padding: { top: 20, bottom: 20 }
           }}
