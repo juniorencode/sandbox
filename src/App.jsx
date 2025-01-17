@@ -26,7 +26,6 @@ const App = () => {
       const linesOutput = outputData.split('\n').length;
       const line = stack.split('\n')[2].split(':').reverse()[1] - 2;
 
-      oldConsoleLog(args);
       const formattedArgs = args
         .map(arg => {
           if (typeof arg === 'object' && arg !== null) {
