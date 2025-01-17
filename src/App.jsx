@@ -90,6 +90,7 @@ myDog.speak();
     { id: 2, name: 'Tab 2', code: '' },
     { id: 3, name: 'Tab 3', code: '' }
   ]);
+  const [activeTab, setActiveTab] = useState(1);
 
   const editorRef = useRef(null);
   const outputRef = useRef(null);
@@ -120,6 +121,7 @@ myDog.speak();
       code: ''
     };
     setTabs([...tabs, newTab]);
+    setActiveTab(newTab.id);
   };
 
   const handleEditorChange = value => {
@@ -171,23 +173,28 @@ myDog.speak();
           <button className="w-3 h-3 rounded-full bg-green-500"></button>
         </div>
         <div className="flex flex-nowrap px-2 h-10 whitespace-nowrap overflow-x-auto scrollbar-hidden text-neutral-600">
-          <div className="group flex items-center justify-center gap-2 pl-4 pr-3 rounded-t-lg text-neutral-300 bg-[#212830]">
-            <div>Tab 1</div>
-            <button className="flex items-center justify-center mt-0.5 w-4 h-4 rounded-full hover:bg-[#464d5a]">
-              <IoClose size={16} />
-            </button>
-          </div>
-          <button className="group flex items-center justify-center px-2 rounded-t-lg">
-            <div className="px-2 rounded-lg group-hover:text-neutral-500 group-hover:bg-[#1b212b] transition-colors">
-              Tab 2
-            </div>
-          </button>
-          <button className="group flex items-center justify-center px-2 rounded-t-lg">
-            <div className="px-2 rounded-lg group-hover:text-neutral-500 group-hover:bg-[#1b212b] transition-colors">
-              Tab 3
-            </div>
-          </button>
-
+          {tabs.map(tab =>
+            activeTab === tab.id ? (
+              <div
+                key={tab.id}
+                className="group flex items-center justify-center gap-2 pl-4 pr-3 rounded-t-lg text-neutral-300 bg-[#212830]"
+              >
+                <div>{tab.name}</div>
+                <button className="flex items-center justify-center mt-0.5 w-4 h-4 rounded-full hover:bg-[#464d5a]">
+                  <IoClose size={16} />
+                </button>
+              </div>
+            ) : (
+              <button
+                key={tab.id}
+                className="group flex items-center justify-center px-2 rounded-t-lg"
+              >
+                <div className="px-2 rounded-lg group-hover:text-neutral-500 group-hover:bg-[#1b212b] transition-colors">
+                  {tab.name}
+                </div>
+              </button>
+            )
+          )}
           <div className="flex items-center justify-center ml-2">
             <button
               className="p-0.5 rounded-full hover:bg-neutral-300 transition-colors"
