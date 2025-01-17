@@ -121,8 +121,8 @@ myDog.speak();
   };
 
   return (
-    <div className="flex">
-      <div className="w-[100vw] h-screen">
+    <div className="flex bg-[#212830]">
+      <div className="w-[60vw] h-screen">
         <Editor
           theme="github-dark-theme"
           defaultLanguage="javascript"
