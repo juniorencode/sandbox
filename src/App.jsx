@@ -20,8 +20,17 @@ const App = () => {
   useEffect(() => {
     const oldConsoleLog = console.log;
     let outputData = '';
-    console.log = message => {
-      outputData += message + '\n';
+
+    console.log = (...args) => {
+      const formattedArgs = args
+        .map(arg => {
+          if (typeof arg === 'object' && arg !== null) {
+            return JSON.stringify(arg, null, 2);
+          }
+          return String(arg);
+        })
+        .join(' ');
+      outputData += formattedArgs + '\n';
     };
 
     try {
