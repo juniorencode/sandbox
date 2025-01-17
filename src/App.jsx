@@ -22,6 +22,10 @@ const App = () => {
     let outputData = '';
 
     console.log = (...args) => {
+      const stack = new Error().stack || '';
+      const linesOutput = outputData.split('\n').length;
+      const line = stack.split('\n')[2].split(':').reverse()[1] - 2;
+
       const formattedArgs = args
         .map(arg => {
           if (typeof arg === 'object' && arg !== null) {
@@ -30,6 +34,13 @@ const App = () => {
           return String(arg);
         })
         .join(' ');
+
+      if (linesOutput < line) {
+        for (let i = linesOutput; i < line; i++) {
+          outputData += '\n';
+        }
+      }
+
       outputData += formattedArgs + '\n';
     };
 
