@@ -85,6 +85,12 @@ myDog.speak();
   const [worker, setWorker] = useState(null);
   const [timeoutId, setTimeoutId] = useState(null);
 
+  const [tabs, setTabs] = useState([
+    { id: 1, name: 'Tab 1', code: '' },
+    { id: 2, name: 'Tab 2', code: '' },
+    { id: 3, name: 'Tab 3', code: '' }
+  ]);
+
   const editorRef = useRef(null);
   const outputRef = useRef(null);
 
@@ -106,6 +112,15 @@ myDog.speak();
     };
     // eslint-disable-next-line
   }, []);
+
+  const addTab = () => {
+    const newTab = {
+      id: tabs.length + 1,
+      name: `Tab ${tabs.length + 1}`,
+      code: ''
+    };
+    setTabs([...tabs, newTab]);
+  };
 
   const handleEditorChange = value => {
     setCode(value);
@@ -172,8 +187,12 @@ myDog.speak();
               Tab 3
             </div>
           </button>
+
           <div className="flex items-center justify-center ml-2">
-            <button className="p-0.5 rounded-full hover:bg-neutral-300 transition-colors">
+            <button
+              className="p-0.5 rounded-full hover:bg-neutral-300 transition-colors"
+              onClick={addTab}
+            >
               <GoPlus size={20} />
             </button>
           </div>
