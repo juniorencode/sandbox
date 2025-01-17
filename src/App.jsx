@@ -1,12 +1,38 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Editor from '@monaco-editor/react';
 
 const App = () => {
   const [code, setCode] = useState('');
-  const [output] = useState('');
+  const [output, setOutput] = useState('');
+  const [worker, setWorker] = useState(null);
+  const [timeoutId, setTimeoutId] = useState(null);
+
+  useEffect(() => {
+    const newWorker = new Worker(
+      new URL('./utilities/codeWorker.js', import.meta.url)
+    );
+    setWorker(newWorker);
+
+    return () => {
+      newWorker.terminate();
+    };
+  }, []);
 
   const handleEditorChange = value => {
     setCode(value);
+
+    if (timeoutId) clearInterval(timeoutId);
+
+    setTimeoutId(
+      setTimeout(() => {
+        if (worker) {
+          worker.postMessage(value);
+          worker.onmessage = e => {
+            setOutput(e.data);
+          };
+        }
+      }, 200)
+    );
   };
 
   return (
@@ -18,7 +44,6 @@ const App = () => {
           value={code}
           onChange={handleEditorChange}
           options={{
-            lineNumbers: 'off',
             minimap: { enabled: false },
             padding: { top: 20, bottom: 20 }
           }}
