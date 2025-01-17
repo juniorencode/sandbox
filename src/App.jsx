@@ -124,6 +124,7 @@ myDog.speak();
     };
     setTabs([...tabs, newTab]);
     setActiveTab(newTab.id);
+    setCode('');
   };
 
   const removeTab = id => {
