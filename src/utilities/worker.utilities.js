@@ -28,6 +28,31 @@ self.onmessage = e => {
     }
   };
 
+  ['debug', 'info', 'warn', 'error'].forEach(method => {
+    customConsole[method] = (...args) => customConsole.log(...args);
+  });
+
+  [
+    'assert',
+    'table',
+    'clear',
+    'dir',
+    'dirxml',
+    'group',
+    'groupCollapsed',
+    'groupEnd',
+    'time',
+    'timeEnd',
+    'timeLog',
+    'trace',
+    'profile',
+    'profileEnd',
+    'count',
+    'countReset'
+  ].forEach(method => {
+    customConsole[method] = () => {};
+  });
+
   try {
     const func = new Function('console', code);
     func(customConsole);
