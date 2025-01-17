@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import Editor from '@monaco-editor/react';
-import { githubDarkTheme } from './utilities/theme.utilities';
+import { GoPlus } from 'react-icons/go';
 import { IoClose } from 'react-icons/io5';
+import { githubDarkTheme } from './utilities/theme.utilities';
 
 const App = () => {
   const [code, setCode] = useState(`// Constants
@@ -149,6 +150,11 @@ myDog.speak();
   return (
     <div className="flex flex-col bg-[#212830]">
       <div className="flex gap-1 px-2 select-none bg-[#14181f]">
+        <div className="flex gap-2 items-center justify-center px-1">
+          <button className="w-3 h-3 rounded-full bg-red-500"></button>
+          <button className="w-3 h-3 rounded-full bg-yellow-500"></button>
+          <button className="w-3 h-3 rounded-full bg-green-500"></button>
+        </div>
         <div className="flex flex-nowrap px-2 h-10 whitespace-nowrap overflow-x-auto scrollbar-hidden text-neutral-600">
           <div className="group flex items-center justify-center gap-2 pl-4 pr-3 rounded-t-lg text-neutral-300 bg-[#212830]">
             <div>Tab 1</div>
@@ -166,6 +172,11 @@ myDog.speak();
               Tab 3
             </div>
           </button>
+          <div className="flex items-center justify-center ml-2">
+            <button className="p-0.5 rounded-full hover:bg-neutral-300 transition-colors">
+              <GoPlus size={20} />
+            </button>
+          </div>
         </div>
       </div>
       <div className="flex">
