@@ -78,7 +78,7 @@ user.greet();
 // Using the Class
 const myDog = new Dog("Buddy");
 myDog.speak();
-    `);
+`);
   const [output, setOutput] = useState('');
   const [worker, setWorker] = useState(null);
   const [timeoutId, setTimeoutId] = useState(null);
