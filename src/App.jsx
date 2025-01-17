@@ -85,7 +85,7 @@ myDog.speak();
 
   useEffect(() => {
     const newWorker = new Worker(
-      new URL('./utilities/codeWorker.js', import.meta.url)
+      new URL('./utilities/worker.utilities.js', import.meta.url)
     );
     setWorker(newWorker);
 
