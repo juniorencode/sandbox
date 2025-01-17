@@ -135,19 +135,9 @@ myDog.speak();
           beforeMount={handleBeforeMount}
         />
       </div>
-      {/* <div className="w-[40vw] h-screen">
-        <Editor
-          defaultLanguage="json"
-          theme="vs-dark"
-          value={output}
-          options={{
-            lineNumbers: 'off',
-            minimap: { enabled: false },
-            padding: { top: 20, bottom: 20 },
-            readOnly: true
-          }}
-        />
-      </div> */}
+      <div className="py-5 px-4 w-[40vw] h-screen leading-[1.36] text-[14px] overflow-y-auto text-neutral-300">
+        <pre>{output}</pre>
+      </div>
     </div>
   );
 };
