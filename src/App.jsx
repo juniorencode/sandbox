@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Editor from '@monaco-editor/react';
 import { githubDarkTheme } from './utilities/theme.utilities';
+import { IoClose } from 'react-icons/io5';
 
 const App = () => {
   const [code, setCode] = useState(`// Constants
@@ -146,28 +147,50 @@ myDog.speak();
   };
 
   return (
-    <div className="flex bg-[#212830]">
-      <div className="w-[60vw] h-screen">
-        <Editor
-          theme="github-dark-theme"
-          defaultLanguage="javascript"
-          value={code}
-          options={{
-            minimap: { enabled: false },
-            padding: { top: 20, bottom: 20 }
-          }}
-          onChange={handleEditorChange}
-          beforeMount={handleBeforeMount}
-          onMount={handleEditorDidMount}
-          onDidScrollChange={handleScrollEditor}
-        />
+    <div className="flex flex-col bg-[#212830]">
+      <div className="flex gap-1 px-2 select-none bg-[#14181f]">
+        <div className="flex flex-nowrap px-2 h-10 whitespace-nowrap overflow-x-auto scrollbar-hidden text-neutral-600">
+          <div className="group flex items-center justify-center gap-2 pl-4 pr-3 rounded-t-lg text-neutral-300 bg-[#212830]">
+            <div>Tab 1</div>
+            <button className="flex items-center justify-center mt-0.5 w-4 h-4 rounded-full hover:bg-[#464d5a]">
+              <IoClose size={16} />
+            </button>
+          </div>
+          <button className="group flex items-center justify-center px-2 rounded-t-lg">
+            <div className="px-2 rounded-lg group-hover:text-neutral-500 group-hover:bg-[#1b212b] transition-colors">
+              Tab 2
+            </div>
+          </button>
+          <button className="group flex items-center justify-center px-2 rounded-t-lg">
+            <div className="px-2 rounded-lg group-hover:text-neutral-500 group-hover:bg-[#1b212b] transition-colors">
+              Tab 3
+            </div>
+          </button>
+        </div>
       </div>
-      <div
-        ref={outputRef}
-        className="py-5 px-4 w-[40vw] h-screen leading-[1.36] text-[14px] overflow-y-auto text-neutral-300"
-        onScroll={handleScrollOutput}
-      >
-        <pre className="pb-[calc(100vh-42px)]">{output}</pre>
+      <div className="flex">
+        <div className="w-[60vw] h-screen">
+          <Editor
+            theme="github-dark-theme"
+            defaultLanguage="javascript"
+            value={code}
+            options={{
+              minimap: { enabled: false },
+              padding: { top: 20, bottom: 20 }
+            }}
+            onChange={handleEditorChange}
+            beforeMount={handleBeforeMount}
+            onMount={handleEditorDidMount}
+            onDidScrollChange={handleScrollEditor}
+          />
+        </div>
+        <div
+          ref={outputRef}
+          className="py-5 px-4 w-[40vw] h-screen leading-[1.36] text-[14px] overflow-y-auto text-neutral-300"
+          onScroll={handleScrollOutput}
+        >
+          <pre className="pb-[calc(100vh-42px)]">{output}</pre>
+        </div>
       </div>
     </div>
   );
