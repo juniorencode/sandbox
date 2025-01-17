@@ -5,7 +5,11 @@ import { IoClose } from 'react-icons/io5';
 import { githubDarkTheme } from './utilities/theme.utilities';
 
 const App = () => {
-  const [code, setCode] = useState(`// Constants
+  const [tabs, setTabs] = useState([
+    {
+      id: 1,
+      name: 'Tab 1',
+      code: `// Constants
 const PI = 3.14159;
 const MAX_COUNT = 100;
 
@@ -80,17 +84,15 @@ user.greet();
 // Using the Class
 const myDog = new Dog("Buddy");
 myDog.speak();
-`);
+`
+    }
+  ]);
+  const [activeTab, setActiveTab] = useState(1);
+
+  const [code, setCode] = useState(tabs[0].code);
   const [output, setOutput] = useState('');
   const [worker, setWorker] = useState(null);
   const [timeoutId, setTimeoutId] = useState(null);
-
-  const [tabs, setTabs] = useState([
-    { id: 1, name: 'Tab 1', code: '' },
-    { id: 2, name: 'Tab 2', code: '' },
-    { id: 3, name: 'Tab 3', code: '' }
-  ]);
-  const [activeTab, setActiveTab] = useState(1);
 
   const editorRef = useRef(null);
   const outputRef = useRef(null);
@@ -131,6 +133,12 @@ myDog.speak();
     if (activeTab === id) {
       setActiveTab(newTabs[0].id);
     }
+  };
+
+  const handleTabClick = id => {
+    setActiveTab(id);
+    const activeTabCode = tabs.find(tab => tab.id === id)?.code || '';
+    setCode(activeTabCode);
   };
 
   const handleEditorChange = value => {
@@ -197,14 +205,17 @@ myDog.speak();
                 </button>
               </div>
             ) : (
-              <button
+              <div
                 key={tab.id}
-                className="group flex items-center justify-center px-2 rounded-t-lg"
+                className="flex items-center justify-center px-2 rounded-t-lg"
               >
-                <div className="px-2 rounded-lg group-hover:text-neutral-500 group-hover:bg-[#1b212b] transition-colors">
+                <button
+                  className="px-2 rounded-lg hover:text-neutral-500 hover:bg-[#1b212b] transition-colors"
+                  onClick={() => handleTabClick(tab.id)}
+                >
                   {tab.name}
-                </div>
-              </button>
+                </button>
+              </div>
             )
           )}
           <div className="flex items-center justify-center ml-2">
