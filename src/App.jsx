@@ -117,9 +117,14 @@ myDog.speak();
   }, []);
 
   const addTab = () => {
+    const usedIds = tabs.map(tab => tab.id);
+    let newId = 1;
+
+    while (usedIds.includes(newId)) newId++;
+
     const newTab = {
-      id: tabs.length + 1,
-      name: `Tab ${tabs.length + 1}`,
+      id: newId,
+      name: `Tab ${newId}`,
       code: ''
     };
     setTabs([...tabs, newTab]);
@@ -133,6 +138,7 @@ myDog.speak();
     setTabs(newTabs);
     if (activeTab === id) {
       setActiveTab(newTabs[0].id);
+      setCode(newTabs[0].code);
     }
   };
 
@@ -206,17 +212,15 @@ myDog.speak();
                 </button>
               </div>
             ) : (
-              <div
+              <button
                 key={tab.id}
                 className="flex items-center justify-center px-2 rounded-t-lg"
+                onClick={() => handleTabClick(tab.id)}
               >
-                <button
-                  className="px-2 rounded-lg hover:text-neutral-500 hover:bg-[#1b212b] transition-colors"
-                  onClick={() => handleTabClick(tab.id)}
-                >
+                <div className="px-2 pr-7 rounded-lg hover:text-neutral-500 hover:bg-[#1b212b] transition-colors">
                   {tab.name}
-                </button>
-              </div>
+                </div>
+              </button>
             )
           )}
           <div className="flex items-center justify-center ml-2">
