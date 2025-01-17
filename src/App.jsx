@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Editor from '@monaco-editor/react';
 import { githubDarkTheme } from './utilities/theme.utilities';
 
@@ -83,20 +83,27 @@ myDog.speak();
   const [worker, setWorker] = useState(null);
   const [timeoutId, setTimeoutId] = useState(null);
 
+  const editorRef = useRef(null);
+  const outputRef = useRef(null);
+
   useEffect(() => {
     const newWorker = new Worker(
       new URL('./utilities/worker.utilities.js', import.meta.url)
     );
     setWorker(newWorker);
 
+    if (code !== '') {
+      newWorker.postMessage(code);
+      newWorker.onmessage = e => {
+        setOutput(e.data);
+      };
+    }
+
     return () => {
       newWorker.terminate();
     };
+    // eslint-disable-next-line
   }, []);
-
-  useEffect(() => {
-    console.log(output);
-  }, [output]);
 
   const handleEditorChange = value => {
     setCode(value);
@@ -116,8 +123,26 @@ myDog.speak();
   };
 
   const handleBeforeMount = monaco => {
-    console.log('x');
     monaco.editor.defineTheme('github-dark-theme', githubDarkTheme);
+  };
+
+  const handleEditorDidMount = editor => {
+    editorRef.current = editor;
+    editor.onDidScrollChange(e => {
+      handleScrollEditor(e);
+    });
+  };
+
+  const handleScrollEditor = e => {
+    if (editorRef.current && outputRef.current) {
+      outputRef.current.scrollTop = e.scrollTop;
+    }
+  };
+
+  const handleScrollOutput = () => {
+    editorRef.current.setScrollPosition({
+      scrollTop: outputRef.current.scrollTop
+    });
   };
 
   return (
@@ -133,10 +158,16 @@ myDog.speak();
           }}
           onChange={handleEditorChange}
           beforeMount={handleBeforeMount}
+          onMount={handleEditorDidMount}
+          onDidScrollChange={handleScrollEditor}
         />
       </div>
-      <div className="py-5 px-4 w-[40vw] h-screen leading-[1.36] text-[14px] overflow-y-auto text-neutral-300">
-        <pre>{output}</pre>
+      <div
+        ref={outputRef}
+        className="py-5 px-4 w-[40vw] h-screen leading-[1.36] text-[14px] overflow-y-auto text-neutral-300"
+        onScroll={handleScrollOutput}
+      >
+        <pre className="pb-[calc(100vh-42px)]">{output}</pre>
       </div>
     </div>
   );
