@@ -5,91 +5,20 @@ import { IoClose } from 'react-icons/io5';
 import { githubDarkTheme } from './utilities/theme.utilities';
 
 const App = () => {
-  const [tabs, setTabs] = useState([
-    {
-      id: 1,
-      name: 'Tab 1',
-      code: `// Constants
-const PI = 3.14159;
-const MAX_COUNT = 100;
-
-// Variables
-let counter = 0;
-let isRunning = true;
-
-// Function
-function calculateArea(radius) {
-  if (radius <= 0) {
-    throw new Error("Radius must be greater than zero");
-  }
-  return PI * radius * radius;
-}
-
-// Object
-const user = {
-  name: "John Doe",
-  age: 30,
-  skills: ["JavaScript", "React", "Node.js"],
-  greet() {
-    console.log(\`Hello, my name is \${this.name}\`);
-  },
-};
-
-// Array
-const numbers = [1, 2, 3, 4, 5];
-
-// Class
-class Animal {
-  constructor(name, type) {
-    this.name = name;
-    this.type = type;
-  }
-  speak() {
-    console.log(\`\${this.name} makes a noise.\`);
-  }
-}
-
-// Inheritance
-class Dog extends Animal {
-  constructor(name) {
-    super(name, "dog");
-  }
-  speak() {
-    console.log(\`\${this.name} barks.\`);
-  }
-}
-
-// Conditionals
-if (isRunning) {
-  console.log("The program is running...");
-} else {
-  console.log("The program has stopped.");
-}
-
-// Loop
-for (let i = 0; i < numbers.length; i++) {
-  console.log(\`Number at index \${i}: \${numbers[i]}\`);
-}
-
-// Try-catch
-try {
-  console.log(calculateArea(-1));
-} catch (error) {
-  console.error(error.message);
-}
-
-// Using the Object
-user.greet();
-
-// Using the Class
-const myDog = new Dog("Buddy");
-myDog.speak();
-`
-    }
-  ]);
+  const [tabs, setTabs] = useState(() => {
+    const savedTabs = localStorage.getItem('data');
+    return savedTabs
+      ? JSON.parse(savedTabs)
+      : [
+          {
+            id: 1,
+            name: 'Tab 1',
+            code: ''
+          }
+        ];
+  });
   const [activeTab, setActiveTab] = useState(1);
 
-  const [code, setCode] = useState(tabs[0].code);
   const [output, setOutput] = useState('');
   const [worker, setWorker] = useState(null);
   const [timeoutId, setTimeoutId] = useState(null);
@@ -103,6 +32,7 @@ myDog.speak();
     );
     setWorker(newWorker);
 
+    const code = tabs.find(tab => tab.id === activeTab)?.code || '';
     if (code !== '') {
       newWorker.postMessage(code);
       newWorker.onmessage = e => {
@@ -115,6 +45,10 @@ myDog.speak();
     };
     // eslint-disable-next-line
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('data', JSON.stringify(tabs));
+  }, [tabs]);
 
   const addTab = () => {
     const usedIds = tabs.map(tab => tab.id);
@@ -129,7 +63,6 @@ myDog.speak();
     };
     setTabs([...tabs, newTab]);
     setActiveTab(newTab.id);
-    setCode('');
   };
 
   const removeTab = id => {
@@ -138,23 +71,27 @@ myDog.speak();
     setTabs(newTabs);
     if (activeTab === id) {
       setActiveTab(newTabs[0].id);
-      setCode(newTabs[0].code);
     }
   };
 
   const handleTabClick = id => {
     setActiveTab(id);
-    const activeTabCode = tabs.find(tab => tab.id === id)?.code || '';
-    setCode(activeTabCode);
   };
 
   const handleEditorChange = value => {
-    setCode(value);
-
     if (timeoutId) clearInterval(timeoutId);
 
     setTimeoutId(
       setTimeout(() => {
+        const updateCode = tabs.map(tab => {
+          if (tab.id === activeTab) {
+            return { ...tab, code: value };
+          }
+          return tab;
+        });
+
+        setTabs(updateCode);
+
         if (worker) {
           worker.postMessage(value);
           worker.onmessage = e => {
@@ -235,10 +172,11 @@ myDog.speak();
       </div>
       <div className="flex">
         <div className="w-[60vw] h-[calc(100vh-40px)]">
+          {console.log(tabs)}
           <Editor
             theme="github-dark-theme"
             defaultLanguage="javascript"
-            value={code}
+            value={tabs.find(tab => tab.id === activeTab)?.code || ''}
             options={{
               minimap: { enabled: false },
               padding: { top: 20, bottom: 20 }
