@@ -9,6 +9,7 @@ export const EditorPanel = ({
   activeTab,
   editorRef,
   outputRef,
+  editorSeparator,
   executeCode
 }) => {
   const [timeoutId, setTimeoutId] = useState(null);
@@ -44,7 +45,10 @@ export const EditorPanel = ({
   };
 
   return (
-    <div className="w-[60vw] h-[calc(100vh-40px)]">
+    <div
+      className="h-[calc(100vh-40px)]"
+      style={{ width: `${editorSeparator}vw` }}
+    >
       <Editor
         theme="github-dark-theme"
         defaultLanguage="javascript"
@@ -73,5 +77,6 @@ EditorPanel.propTypes = {
   activeTab: PropTypes.number.isRequired,
   editorRef: PropTypes.object.isRequired,
   outputRef: PropTypes.object.isRequired,
+  editorSeparator: PropTypes.number.isRequired,
   executeCode: PropTypes.func.isRequired
 };

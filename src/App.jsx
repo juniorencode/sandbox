@@ -28,6 +28,8 @@ const App = () => {
   const editorRef = useRef(null);
   const outputRef = useRef(null);
 
+  const [editorSeparator, setEditorSeparator] = useState(60);
+
   useEffect(() => {
     localStorage.setItem('data', JSON.stringify(tabs));
   }, [tabs]);
@@ -35,6 +37,20 @@ const App = () => {
   useEffect(() => {
     localStorage.setItem('activeTab', activeTab);
   }, [activeTab]);
+
+  const handleMouseDown = e => {
+    e.preventDefault();
+    document.addEventListener('mousemove', handleResize);
+    document.addEventListener('mouseup', () => {
+      document.removeEventListener('mousemove', handleResize);
+    });
+  };
+
+  const handleResize = e => {
+    const newWidth = (e.clientX / window.innerWidth) * 100;
+    const limitedWidth = Math.min(Math.max(newWidth, 20), 80);
+    setEditorSeparator(limitedWidth);
+  };
 
   return (
     <div className="flex flex-col bg-[#212830]">
@@ -53,12 +69,18 @@ const App = () => {
           activeTab={activeTab}
           editorRef={editorRef}
           outputRef={outputRef}
+          editorSeparator={editorSeparator}
           executeCode={executeCode}
+        />
+        <div
+          className="w-1 cursor-ew-resize bg-neutral-600"
+          onMouseDown={handleMouseDown}
         />
         <OutputPanel
           output={output}
           editorRef={editorRef}
           outputRef={outputRef}
+          editorSeparator={editorSeparator}
         />
       </div>
     </div>
