@@ -6,7 +6,12 @@ self.onmessage = e => {
     log: (...args) => {
       const stack = new Error().stack || '';
       const linesOutput = outputData.split('\n').length;
-      const line = stack.split('\n')[2].split(':').reverse()[1] - 2;
+      const line =
+        stack
+          .split('\n')
+          .filter(item => item.includes('anonymous'))[0]
+          .split(':')
+          .reverse()[1] - 2;
 
       const formattedArgs = args
         .map(arg => {
