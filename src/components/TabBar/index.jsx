@@ -2,6 +2,7 @@ import PropTypes from 'prop-types';
 import { useEffect } from 'react';
 import { GoPlus } from 'react-icons/go';
 import { IoClose } from 'react-icons/io5';
+import './TabBar.css';
 
 export const TabBar = ({
   tabs,
@@ -78,12 +79,12 @@ export const TabBar = ({
           onClick={handleMinimize}
         ></button>
       </div>
-      <div className="flex flex-nowrap px-2 h-[40px] whitespace-nowrap overflow-x-auto scrollbar-hidden text-neutral-600">
+      <div className="flex flex-nowrap px-3 h-[40px] whitespace-nowrap overflow-x-auto scrollbar-hidden overflow-y-hidden text-neutral-600">
         {tabs.map(tab =>
           activeTab === tab.id ? (
             <div
               key={tab.id}
-              className="group flex items-center justify-center gap-2 pl-4 pr-3 rounded-t-lg text-neutral-300 bg-[#212830]"
+              className="indicator group relative flex items-center justify-center gap-2 pl-4 pr-3 rounded-t-[10px] text-neutral-300 bg-[#212830]"
             >
               <div>{tab.name}</div>
               <button
@@ -96,10 +97,10 @@ export const TabBar = ({
           ) : (
             <button
               key={tab.id}
-              className="flex items-center justify-center px-2 rounded-t-lg"
+              className="flex items-center justify-center px-1 rounded-t-lg"
               onClick={() => switchTab(tab.id)}
             >
-              <div className="px-2 pr-7 rounded-lg hover:text-neutral-500 hover:bg-[#1b212b] transition-colors">
+              <div className="px-3 py-1 pr-7 rounded-t-lg hover:text-neutral-500 hover:bg-[#1b212b] transition-colors">
                 {tab.name}
               </div>
             </button>
