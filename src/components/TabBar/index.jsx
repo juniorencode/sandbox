@@ -42,12 +42,31 @@ export const TabBar = ({
     executeCode(code);
   };
 
+  const handleClose = () => {
+    window.api.closeWindow();
+  };
+  const handleMinimize = () => {
+    window.api.minimizeWindow();
+  };
+  const handleMaximize = () => {
+    window.api.maximizeWindow();
+  };
+
   return (
     <div className="flex gap-1 px-2 select-none bg-[#14181f]">
       <div className="flex gap-2 items-center justify-center px-1">
-        <button className="w-3 h-3 rounded-full bg-red-500"></button>
-        <button className="w-3 h-3 rounded-full bg-yellow-500"></button>
-        <button className="w-3 h-3 rounded-full bg-green-500"></button>
+        <button
+          className="w-3 h-3 rounded-full bg-red-500 hover:bg-red-600"
+          onClick={handleClose}
+        ></button>
+        <button
+          className="w-3 h-3 rounded-full bg-yellow-500 hover:bg-yellow-600"
+          onClick={handleMaximize}
+        ></button>
+        <button
+          className="w-3 h-3 rounded-full bg-green-500 hover:bg-green-600"
+          onClick={handleMinimize}
+        ></button>
       </div>
       <div className="flex flex-nowrap px-2 h-[40px] whitespace-nowrap overflow-x-auto scrollbar-hidden text-neutral-600">
         {tabs.map(tab =>
