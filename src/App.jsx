@@ -17,7 +17,10 @@ const App = () => {
           }
         ];
   });
-  const [activeTab, setActiveTab] = useState(1);
+  const [activeTab, setActiveTab] = useState(() => {
+    const savedActiveTab = localStorage.getItem('activeTab');
+    return savedActiveTab ? parseInt(savedActiveTab) : tabs[0].id;
+  });
 
   const [output, setOutput] = useState('');
   const [worker, setWorker] = useState(null);
@@ -46,6 +49,10 @@ const App = () => {
   useEffect(() => {
     localStorage.setItem('data', JSON.stringify(tabs));
   }, [tabs]);
+
+  useEffect(() => {
+    localStorage.setItem('activeTab', activeTab);
+  }, [activeTab]);
 
   const addTab = () => {
     const usedIds = tabs.map(tab => tab.id);
