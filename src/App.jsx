@@ -34,10 +34,7 @@ const App = () => {
 
     const code = tabs.find(tab => tab.id === activeTab)?.code || '';
     if (code !== '') {
-      newWorker.postMessage(code);
-      newWorker.onmessage = e => {
-        setOutput(e.data);
-      };
+      executeCode(newWorker, code);
     }
 
     return () => {
@@ -63,6 +60,7 @@ const App = () => {
     };
     setTabs([...tabs, newTab]);
     setActiveTab(newTab.id);
+    setOutput('');
   };
 
   const removeTab = id => {
@@ -74,8 +72,19 @@ const App = () => {
     }
   };
 
-  const handleTabClick = id => {
+  const switchTab = id => {
     setActiveTab(id);
+    const code = tabs.find(tab => tab.id === id)?.code || '';
+    executeCode(worker, code);
+  };
+
+  const executeCode = (worker, value) => {
+    if (worker) {
+      worker.postMessage(value);
+      worker.onmessage = e => {
+        setOutput(e.data);
+      };
+    }
   };
 
   const handleEditorChange = value => {
@@ -91,13 +100,7 @@ const App = () => {
         });
 
         setTabs(updateCode);
-
-        if (worker) {
-          worker.postMessage(value);
-          worker.onmessage = e => {
-            setOutput(e.data);
-          };
-        }
+        executeCode(worker, value);
       }, 200)
     );
   };
@@ -152,7 +155,7 @@ const App = () => {
               <button
                 key={tab.id}
                 className="flex items-center justify-center px-2 rounded-t-lg"
-                onClick={() => handleTabClick(tab.id)}
+                onClick={() => switchTab(tab.id)}
               >
                 <div className="px-2 pr-7 rounded-lg hover:text-neutral-500 hover:bg-[#1b212b] transition-colors">
                   {tab.name}
