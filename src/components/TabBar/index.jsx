@@ -1,4 +1,5 @@
 import PropTypes from 'prop-types';
+import { useEffect } from 'react';
 import { GoPlus } from 'react-icons/go';
 import { IoClose } from 'react-icons/io5';
 
@@ -10,6 +11,15 @@ export const TabBar = ({
   setOutput,
   executeCode
 }) => {
+  useEffect(() => {
+    const dragBar = document.querySelector('.drag-bar');
+    if (dragBar && window.api) {
+      dragBar.addEventListener('mousedown', () => {
+        window.api.enableDrag();
+      });
+    }
+  }, []);
+
   const addTab = () => {
     const usedIds = tabs.map(tab => tab.id);
     let newId = 1;
@@ -53,7 +63,7 @@ export const TabBar = ({
   };
 
   return (
-    <div className="flex gap-1 px-2 select-none bg-[#14181f]">
+    <div className="drag-bar flex gap-1 px-2 select-none bg-[#14181f]">
       <div className="flex gap-2 items-center justify-center px-1">
         <button
           className="w-3 h-3 rounded-full bg-red-500 hover:bg-red-600"

@@ -1,0 +1,9 @@
+.drag-bar {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-app-region: drag;
+}
+
+.drag-bar button {
+  -webkit-app-region: no-drag;
+}
