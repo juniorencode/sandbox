@@ -28,7 +28,10 @@ const App = () => {
   const editorRef = useRef(null);
   const outputRef = useRef(null);
 
-  const [editorSeparator, setEditorSeparator] = useState(60);
+  const [editorSeparator, setEditorSeparator] = useState(() => {
+    const savedSeparator = localStorage.getItem('editorSeparator');
+    return savedSeparator ? parseFloat(savedSeparator) : 60;
+  });
 
   useEffect(() => {
     localStorage.setItem('data', JSON.stringify(tabs));
@@ -37,6 +40,10 @@ const App = () => {
   useEffect(() => {
     localStorage.setItem('activeTab', activeTab);
   }, [activeTab]);
+
+  useEffect(() => {
+    localStorage.setItem('editorSeparator', editorSeparator);
+  }, [editorSeparator]);
 
   const handleMouseDown = e => {
     e.preventDefault();
