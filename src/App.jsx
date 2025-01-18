@@ -80,9 +80,11 @@ const App = () => {
           executeCode={executeCode}
         />
         <div
-          className="w-1 cursor-ew-resize bg-neutral-600"
+          className="flex px-1 cursor-ew-resize"
           onMouseDown={handleMouseDown}
-        />
+        >
+          <div className="w-0.5 bg-[#2d3641]"></div>
+        </div>
         <OutputPanel
           output={output}
           editorRef={editorRef}
