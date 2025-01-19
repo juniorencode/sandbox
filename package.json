@@ -6,10 +6,11 @@
   "main": "./main.cjs",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build-vite": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "electron": "electron ."
+    "electron": "npm run build-vite &&  electron .",
+    "build": "npm run build-vite && electron-builder"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",
@@ -24,6 +25,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
     "electron": "^34.0.0",
+    "electron-builder": "^25.1.8",
     "eslint": "^9.17.0",
     "eslint-plugin-react": "^7.37.2",
     "eslint-plugin-react-hooks": "^5.0.0",
@@ -32,5 +34,32 @@
     "postcss": "^8.5.1",
     "tailwindcss": "^3.4.17",
     "vite": "^6.0.5"
+  },
+  "webPreferences": {
+    "contextIsolation": true,
+    "nodeIntegration": false
+  },
+  "build": {
+    "appId": "com.juniorencode.sandbox",
+    "productName": "Sandbox",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "build/**/*",
+      "main.cjs",
+      "preload.cjs",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "artifactName": "Sandbox-Setup-${version}.exe"
+    },
+    "nsis": {
+      "oneClick": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true
+    }
   }
 }
