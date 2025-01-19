@@ -26,3 +26,11 @@
 .monaco-editor div {
   box-shadow: none !important;
 }
+
+.scrollbar .slider {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+.scrollbar .slider:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
