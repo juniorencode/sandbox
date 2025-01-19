@@ -17,11 +17,13 @@ export const OutputPanel = ({
   return (
     <div
       ref={outputRef}
-      className="py-5 px-4 h-[calc(100vh-40px)] leading-[1.36] text-[14px] overflow-y-auto text-neutral-300"
+      className="py-5 px-4 h-[calc(100vh-40px)] leading-[1.36] text-[14px] overflow-y-auto overflow-x-hidden text-neutral-300"
       style={{ width: `${100 - editorSeparator}vw` }}
       onScroll={handleScrollOutput}
     >
-      <pre className="pb-[calc(100vh-42px)]">{output}</pre>
+      <pre className="pb-[calc(100vh-42px)] break-words whitespace-pre-wrap">
+        {output}
+      </pre>
     </div>
   );
 };
