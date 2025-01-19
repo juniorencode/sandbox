@@ -60,7 +60,7 @@ const App = () => {
   };
 
   return (
-    <div className="flex flex-col bg-[#212830]">
+    <div className="flex flex-col">
       <TabBar
         tabs={tabs}
         activeTab={activeTab}
