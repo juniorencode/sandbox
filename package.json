@@ -53,10 +53,14 @@
     ],
     "win": {
       "target": "nsis",
+      "icon": "./icon.ico",
       "artifactName": "Sandbox-Setup-${version}.exe"
     },
     "nsis": {
       "oneClick": true,
+      "installerIcon": "./icon.ico",
+      "installerHeaderIcon": "./icon.ico",
+      "deleteAppDataOnUninstall": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "runAfterFinish": true
