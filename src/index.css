@@ -11,14 +11,26 @@
   width: 12px;
 }
 
-::-webkit-scrollbar-thumb {
-  background-color: #44484d;
-}
-
 ::-webkit-scrollbar-track {
   background-color: #212830;
 }
 
+::-webkit-scrollbar-thumb {
+  background-color: #44484d;
+}
+
 ::-webkit-scrollbar-thumb:hover {
   background-color: #505254;
+}
+
+.monaco-editor div {
+  box-shadow: none !important;
+}
+
+.scrollbar .slider {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+.scrollbar .slider:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
 }
