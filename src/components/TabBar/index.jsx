@@ -79,6 +79,12 @@ export const TabBar = ({
           onClick={handleMinimize}
         ></button>
       </div>
+      <div
+        className="flex items-center justify-center ml-[10px] w-[20px] bg-no-repeat bg-contain bg-center"
+        style={{
+          backgroundImage: `url('/favicon.png')`
+        }}
+      ></div>
       <div className="flex flex-nowrap px-3 h-[40px] whitespace-nowrap overflow-x-auto scrollbar-hidden overflow-y-hidden text-neutral-600">
         {tabs.map(tab =>
           activeTab === tab.id ? (
