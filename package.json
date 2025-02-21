@@ -1,5 +1,6 @@
 {
   "name": "sandbox",
+  "description": "SandBox is a lightweight and versatile development environment designed to run and test JavaScript code quickly and efficiently. Its minimalist approach and intuitive interface make it an ideal tool for developers looking to experiment with code without complex configurations.",
   "private": true,
   "version": "0.0.0",
   "type": "module",
