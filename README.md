@@ -1,8 +1,20 @@
-# React + Vite
+# RunJS Clone
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An interactive execution environment for JavaScript, built with **Vite**, **React**, and **Electron**.
 
-Currently, two official plugins are available:
+## Installation
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Just install the program, no additional configuration required.
+
+## Features
+
+- Run JavaScript code in real-time.
+- Supports both ES modules and CommonJS.
+- Intuitive interface with syntax highlighting.
+- Execution history and multi-tab support.
+
+## Technologies
+
+- **Electron**: For OS integration.
+- **React**: For the graphical interface.
+- **Vite**: For fast application build.
