@@ -2,7 +2,7 @@
   "name": "sandbox",
   "author": "Carlos Junior Ramos Vásquez",
   "description": "SandBox is a lightweight and versatile development environment designed to run and test JavaScript code quickly and efficiently. Its minimalist approach and intuitive interface make it an ideal tool for developers looking to experiment with code without complex configurations.",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "main": "./main.cjs",
   "scripts": {
