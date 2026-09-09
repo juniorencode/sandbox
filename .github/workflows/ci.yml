@@ -28,9 +28,13 @@ jobs:
 
       - run: npm run build-vite
 
-      - name: Fail if the renderer still fetches Monaco from a CDN
+      # @monaco-editor/loader keeps its default CDN url as an unused string in
+      # the bundle even when loader.config overrides it, so grepping for that
+      # url proves nothing. What matters is that Monaco's own chunks ship with
+      # the app; whether it ever reaches the network is asserted by
+      # scripts/verify-app.cjs, which loads the build with networking disabled.
+      - name: Fail if Monaco is not bundled locally
         run: |
-          if grep -rq "cdn.jsdelivr.net" build/assets; then
-            echo "The build references a CDN; Monaco must be bundled locally."
-            exit 1
-          fi
+          ls build/assets/ts.worker-*.js >/dev/null
+          ls build/assets/editor.worker-*.js >/dev/null
+          echo "Monaco language services are bundled."

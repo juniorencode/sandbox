@@ -20,7 +20,16 @@ const { app, BrowserWindow } = require('electron');
 const ROOT = path.join(__dirname, '..');
 const VISIBLE = process.argv.includes('--show');
 const SHOT = process.argv.includes('--shot');
+const ONLINE = process.argv.includes('--online');
 const PANES = '.flex.min-h-0.flex-1 > div';
+
+/**
+ * Nothing here may hang.
+ *
+ * Electron shows a modal error dialog when the main script fails or stalls,
+ * which is a terrible thing to leave on someone's desktop from a test run.
+ */
+const HARD_TIMEOUT_MS = 90000;
 
 const problems = [];
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -57,11 +66,21 @@ const expect = (condition, message) => {
 
 app.commandLine.appendSwitch('disable-gpu');
 
+const bail = message => {
+  console.error(message);
+  app.exit(1);
+};
+
+setTimeout(() => bail('\nFAILED: verification timed out'), HARD_TIMEOUT_MS);
+
+process.on('uncaughtException', error =>
+  bail('\nFAILED: ' + (error?.stack || error))
+);
+
 app.whenReady().then(async () => {
   const indexFile = path.join(ROOT, 'build', 'index.html');
   if (!fs.existsSync(indexFile)) {
-    console.error('No build found. Run `npm run build-vite` first.');
-    app.exit(1);
+    bail('No build found. Run `npm run build-vite` first.');
     return;
   }
 
@@ -75,6 +94,23 @@ app.whenReady().then(async () => {
       preload: path.join(ROOT, 'preload.cjs')
     }
   });
+
+  /**
+   * The whole point of bundling Monaco was that the editor must not depend on
+   * a network. @monaco-editor/loader still carries its default CDN URL as a
+   * dead string in the bundle, so the only way to prove the override works is
+   * to load the page with no network at all.
+   */
+  if (!ONLINE) {
+    win.webContents.session.enableNetworkEmulation({ offline: true });
+    win.webContents.session.webRequest.onBeforeRequest(
+      { urls: ['http://*/*', 'https://*/*'] },
+      (details, callback) => {
+        problems.push('the renderer tried to reach the network: ' + details.url);
+        callback({ cancel: true });
+      }
+    );
+  }
 
   win.webContents.on('console-message', (_event, level, message) => {
     // Electron's own CSP advisory is emitted as a warning in development
