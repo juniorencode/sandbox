@@ -1,18 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { CommandPalette } from './components/CommandPalette';
 import { EditorPanel } from './components/EditorPanel';
 import { OutputPanel } from './components/OutputPanel';
 import { StatusBar } from './components/StatusBar';
 import { TabBar } from './components/TabBar';
+import { Toast } from './components/Toast';
+import { useCommands } from './hooks/useCommands.hook';
 import { useEditorViewport } from './hooks/useEditorViewport.hook';
+import { useFiles } from './hooks/useFiles.hook';
 import { useRunner, STATUS } from './hooks/useRunner.hook';
+import { useShortcuts } from './hooks/useShortcuts.hook';
 import { useWorkspace } from './hooks/useWorkspace.hook';
 import { ERROR } from './runtime/protocol.js';
+import { label } from './utilities/shortcut.utilities';
 
 const RUN_DEBOUNCE_MS = 200;
 /** Hysteresis so the editor's bottom padding cannot oscillate. */
 const PADDING_TOLERANCE = 8;
 
 const App = () => {
+  const workspace = useWorkspace();
   const {
     loaded,
     tabs,
@@ -20,18 +27,14 @@ const App = () => {
     activeTab,
     settings,
     persistError,
-    setActive,
     updateCode,
-    addTab,
-    closeTab,
-    renameTab,
-    moveTab,
     updateSettings
-  } = useWorkspace();
+  } = workspace;
 
   const [editor, setEditor] = useState(null);
   const [outputBottom, setOutputBottom] = useState(0);
   const [extraBottomPadding, setExtraBottomPadding] = useState(0);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   const runTimerRef = useRef(null);
   const lastRunTabRef = useRef(null);
@@ -39,6 +42,8 @@ const App = () => {
   const viewport = useEditorViewport(editor);
   const { entries, status, duration, overflowed, run, stop, clear, expand } =
     useRunner({ timeoutMs: settings.timeoutMs });
+
+  const fileActions = useFiles(workspace);
 
   const runNow = useCallback(
     code => {
@@ -50,6 +55,46 @@ const App = () => {
     },
     [run, activeTab]
   );
+
+  const toggleAutoRun = useCallback(
+    () => updateSettings({ autoRun: !settings.autoRun }),
+    [settings.autoRun, updateSettings]
+  );
+
+  const palette = useMemo(
+    () => ({
+      open: () => setPaletteOpen(true),
+      close: () => setPaletteOpen(false)
+    }),
+    []
+  );
+
+  const runner = useMemo(
+    () => ({ runNow: () => runNow(), stop, clear, toggleAutoRun }),
+    [runNow, stop, clear, toggleAutoRun]
+  );
+
+  const commands = useCommands({
+    runner,
+    workspace,
+    fileActions,
+    palette,
+    settings
+  });
+
+  useShortcuts(commands);
+
+  /** Shortcut labels for the buttons, derived from the same registry. */
+  const hints = useMemo(() => {
+    const found = id => commands.find(command => command.id === id)?.shortcut;
+    return {
+      run: found('run.now') && label(found('run.now')),
+      stop: found('run.stop') && label(found('run.stop')),
+      clear: found('output.clear') && label(found('output.clear')),
+      newTab: found('tab.new') && label(found('tab.new')),
+      palette: found('palette.open') && label(found('palette.open'))
+    };
+  }, [commands]);
 
   /**
    * The tab is updated immediately and only the run is debounced.
@@ -155,11 +200,12 @@ const App = () => {
       <TabBar
         tabs={tabs}
         activeTabId={activeTabId}
-        onSelect={setActive}
-        onClose={closeTab}
-        onCreate={addTab}
-        onRename={renameTab}
-        onMove={moveTab}
+        onSelect={workspace.setActive}
+        onClose={workspace.closeTab}
+        onCreate={workspace.addTab}
+        onRename={workspace.renameTab}
+        onMove={workspace.moveTab}
+        newTabHint={hints.newTab}
       />
 
       {persistError && (
@@ -203,11 +249,21 @@ const App = () => {
         duration={duration}
         entryCount={entries.length}
         autoRun={settings.autoRun}
-        onToggleAutoRun={() => updateSettings({ autoRun: !settings.autoRun })}
+        hints={hints}
+        onToggleAutoRun={toggleAutoRun}
         onRun={() => runNow()}
         onStop={stop}
         onClear={clear}
+        onOpenPalette={palette.open}
       />
+
+      <CommandPalette
+        commands={commands}
+        open={paletteOpen}
+        onClose={palette.close}
+      />
+
+      <Toast notice={fileActions.notice} onDismiss={fileActions.dismiss} />
     </div>
   );
 };

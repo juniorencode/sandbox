@@ -1,5 +1,11 @@
 import PropTypes from 'prop-types';
-import { VscDebugStop, VscPlay, VscTrash, VscCircleFilled } from 'react-icons/vsc';
+import {
+  VscDebugStop,
+  VscPlay,
+  VscTrash,
+  VscCircleFilled,
+  VscSymbolEvent
+} from 'react-icons/vsc';
 import { STATUS } from '../../hooks/useRunner.hook';
 
 /**
@@ -27,15 +33,20 @@ const TONE = {
   [STATUS.TIMEOUT]: 'text-[#ff7b72]'
 };
 
+/** Appends a keyboard hint only when the command actually has a binding. */
+const withHint = (text, hint) => (hint ? `${text} (${hint})` : text);
+
 export const StatusBar = ({
   status,
   duration,
   entryCount,
   autoRun,
+  hints = {},
   onToggleAutoRun,
   onRun,
   onStop,
-  onClear
+  onClear,
+  onOpenPalette
 }) => (
   <div className="flex h-6 shrink-0 items-center gap-3 border-t border-[#2d3641] bg-[#14181f] px-3 text-[12px] text-[#9198A1] select-none">
     <span className={`flex items-center gap-1 ${TONE[status] ?? ''}`}>
@@ -62,7 +73,7 @@ export const StatusBar = ({
         title={
           autoRun
             ? 'Auto-run is on: code runs as you type'
-            : 'Auto-run is off: use the Run button'
+            : withHint('Auto-run is off: run manually', hints.run)
         }
       >
         {autoRun ? 'auto' : 'manual'}
@@ -71,7 +82,7 @@ export const StatusBar = ({
       <button
         className="flex items-center gap-1 rounded px-2 py-0.5 hover:bg-[#2d3641]"
         onClick={onRun}
-        title="Run now"
+        title={withHint('Run now', hints.run)}
       >
         <VscPlay size={12} />
         Run
@@ -81,7 +92,10 @@ export const StatusBar = ({
         className="flex items-center gap-1 rounded px-2 py-0.5 hover:bg-[#2d3641] disabled:opacity-40"
         onClick={onStop}
         disabled={status !== STATUS.RUNNING}
-        title="Terminate the worker (the only way to stop a synchronous loop)"
+        title={withHint(
+          'Terminate the worker, the only way to stop a synchronous loop',
+          hints.stop
+        )}
       >
         <VscDebugStop size={12} />
         Stop
@@ -90,10 +104,19 @@ export const StatusBar = ({
       <button
         className="flex items-center gap-1 rounded px-2 py-0.5 hover:bg-[#2d3641]"
         onClick={onClear}
-        title="Clear output"
+        title={withHint('Clear output', hints.clear)}
       >
         <VscTrash size={12} />
         Clear
+      </button>
+
+      <button
+        className="flex items-center gap-1 rounded px-2 py-0.5 hover:bg-[#2d3641]"
+        onClick={onOpenPalette}
+        title={withHint('Command palette', hints.palette)}
+      >
+        <VscSymbolEvent size={12} />
+        Commands
       </button>
     </div>
   </div>
@@ -104,8 +127,10 @@ StatusBar.propTypes = {
   duration: PropTypes.number,
   entryCount: PropTypes.number.isRequired,
   autoRun: PropTypes.bool.isRequired,
+  hints: PropTypes.objectOf(PropTypes.string),
   onToggleAutoRun: PropTypes.func.isRequired,
   onRun: PropTypes.func.isRequired,
   onStop: PropTypes.func.isRequired,
-  onClear: PropTypes.func.isRequired
+  onClear: PropTypes.func.isRequired,
+  onOpenPalette: PropTypes.func.isRequired
 };
