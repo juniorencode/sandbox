@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { GoPlus } from 'react-icons/go';
 import { IoClose } from 'react-icons/io5';
+import { windowControls } from '../../platform';
 import './TabBar.css';
 
 export const TabBar = ({ tabs, activeTab, setTabs, setActiveTab }) => {
@@ -33,11 +34,12 @@ export const TabBar = ({ tabs, activeTab, setTabs, setActiveTab }) => {
   // switching no longer has to push code into the worker by hand.
   const switchTab = id => setActiveTab(id);
 
-  // Guarded because `window.api` only exists behind the Electron preload; in
-  // `npm run dev` the app runs in a plain browser tab and these are no-ops.
-  const handleClose = () => window.api?.closeWindow();
-  const handleMinimize = () => window.api?.minimizeWindow();
-  const handleMaximize = () => window.api?.maximizeWindow();
+  // Routed through the platform adapter, which no-ops in a browser tab. These
+  // used to call window.api directly and unguarded, so every one of them threw
+  // under `npm run dev`, where there is no preload bridge.
+  const handleClose = () => windowControls.close();
+  const handleMinimize = () => windowControls.minimize();
+  const handleMaximize = () => windowControls.maximize();
 
   return (
     <div className="drag-bar flex gap-1 px-2 select-none bg-[#14181f]">
