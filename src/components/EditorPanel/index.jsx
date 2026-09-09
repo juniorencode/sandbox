@@ -1,82 +1,122 @@
 import PropTypes from 'prop-types';
-import { useState } from 'react';
+import { useEffect, useRef } from 'react';
 import Editor from '@monaco-editor/react';
+import { monaco } from '../../editor/monaco.setup.js';
 import { githubDarkTheme } from '../../utilities/theme.utilities';
 
+/**
+ * The editor pane.
+ *
+ * Scroll synchronisation used to live here: the editor wrote the output pane's
+ * scrollTop and the output pane wrote back through setScrollPosition, with no
+ * guard between them. It also passed `onDidScrollChange` as a prop to
+ * <Editor>, which is not part of the @monaco-editor/react API and was silently
+ * ignored, so the handler registered in onMount was doing all the work.
+ *
+ * Monaco now owns scrolling for both panes and the output derives its
+ * positions from it, so there is nothing to synchronise here.
+ */
+
+const MARKER_OWNER = 'sandbox-runner';
+
 export const EditorPanel = ({
-  tabs,
-  setTabs,
-  activeTab,
-  editorRef,
-  outputRef,
-  editorSeparator,
-  executeCode
+  value,
+  language,
+  onChange,
+  onEditorReady,
+  markers,
+  extraBottomPadding,
+  width
 }) => {
-  const [timeoutId, setTimeoutId] = useState(null);
+  const editorRef = useRef(null);
 
-  const handleEditorChange = value => {
-    if (timeoutId) clearInterval(timeoutId);
-
-    setTimeoutId(
-      setTimeout(() => {
-        const updateCode = tabs.map(tab =>
-          tab.id === activeTab ? { ...tab, code: value } : tab
-        );
-
-        setTabs(updateCode);
-        executeCode(value);
-      }, 200)
-    );
-  };
-
-  const handleEditorDidMount = editor => {
+  const handleMount = editor => {
     editorRef.current = editor;
-    editor.onDidScrollChange(handleScrollEditor);
+    onEditorReady(editor);
   };
 
-  const handleScrollEditor = e => {
-    if (editorRef.current && outputRef.current) {
-      outputRef.current.scrollTop = e.scrollTop;
-    }
+  const handleBeforeMount = instance => {
+    instance.editor.defineTheme('github-dark-theme', githubDarkTheme);
+    // The editor is a scratchpad, not a project: unresolved imports and
+    // implicit globals are normal here and should not be underlined.
+    instance.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+      noSemanticValidation: true,
+      noSyntaxValidation: false
+    });
   };
 
-  const handleBeforeMount = monaco => {
-    monaco.editor.defineTheme('github-dark-theme', githubDarkTheme);
-  };
+  /**
+   * Underlines the failing line in the gutter and the text.
+   *
+   * Errors used to be plain text appended to the end of the output with no
+   * location at all, so nothing connected them to the code that produced them.
+   */
+  useEffect(() => {
+    const editor = editorRef.current;
+    const model = editor?.getModel();
+    if (!model) return;
+    monaco.editor.setModelMarkers(
+      model,
+      MARKER_OWNER,
+      markers.map(marker => ({
+        startLineNumber: marker.line,
+        endLineNumber: marker.line,
+        startColumn: marker.column ?? 1,
+        endColumn: model.getLineMaxColumn(
+          Math.min(marker.line, model.getLineCount())
+        ),
+        message: marker.message,
+        severity: monaco.MarkerSeverity.Error
+      }))
+    );
+  }, [markers]);
+
+  /**
+   * Output taller than the code it came from needs somewhere to scroll to.
+   * Extending the editor's bottom padding grows Monaco's own scroll range,
+   * which keeps it the single scroll authority for both panes.
+   */
+  useEffect(() => {
+    editorRef.current?.updateOptions({
+      padding: { top: 20, bottom: 20 + extraBottomPadding }
+    });
+  }, [extraBottomPadding]);
 
   return (
-    <div
-      className="h-[calc(100vh-40px)]"
-      style={{ width: `${editorSeparator}vw` }}
-    >
+    <div className="h-full min-w-0" style={{ width }}>
       <Editor
         theme="github-dark-theme"
-        defaultLanguage="javascript"
-        value={tabs.find(tab => tab.id === activeTab)?.code || ''}
+        language={language}
+        value={value}
         options={{
           minimap: { enabled: false },
-          padding: { top: 20, bottom: 20 }
+          padding: { top: 20, bottom: 20 },
+          scrollBeyondLastLine: true,
+          smoothScrolling: true,
+          fixedOverflowWidgets: true,
+          renderLineHighlight: 'line',
+          scrollbar: { verticalScrollbarSize: 12, useShadows: false }
         }}
-        onChange={handleEditorChange}
-        onMount={handleEditorDidMount}
+        onChange={onChange}
+        onMount={handleMount}
         beforeMount={handleBeforeMount}
-        onDidScrollChange={handleScrollEditor}
       />
     </div>
   );
 };
 
 EditorPanel.propTypes = {
-  tabs: PropTypes.arrayOf(
+  value: PropTypes.string.isRequired,
+  language: PropTypes.string.isRequired,
+  onChange: PropTypes.func.isRequired,
+  onEditorReady: PropTypes.func.isRequired,
+  markers: PropTypes.arrayOf(
     PropTypes.shape({
-      id: PropTypes.number.isRequired,
-      code: PropTypes.string.isRequired
+      line: PropTypes.number.isRequired,
+      column: PropTypes.number,
+      message: PropTypes.string.isRequired
     })
   ).isRequired,
-  setTabs: PropTypes.func.isRequired,
-  activeTab: PropTypes.number.isRequired,
-  editorRef: PropTypes.object.isRequired,
-  outputRef: PropTypes.object.isRequired,
-  editorSeparator: PropTypes.number.isRequired,
-  executeCode: PropTypes.func.isRequired
+  extraBottomPadding: PropTypes.number.isRequired,
+  width: PropTypes.string.isRequired
 };
