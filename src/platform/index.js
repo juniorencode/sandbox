@@ -17,6 +17,22 @@ const bridge = globalThis.sandbox;
 /** True when running inside the desktop shell rather than a browser tab. */
 export const isDesktop = Boolean(bridge);
 
+/**
+ * Calls across the bridge without letting a failure escape as a rejection.
+ *
+ * `ipcRenderer.invoke` rejects when a channel has no handler, and an
+ * uncaught rejection during startup left the app on its loading placeholder
+ * forever, which is the same unrecoverable blank window that a corrupt
+ * workspace used to produce. Every call site here gets a value back.
+ */
+const attempt = async (call, fallback = null) => {
+  try {
+    return await call();
+  } catch (error) {
+    return { ok: false, error: String(error?.message || error), fallback };
+  }
+};
+
 const LEGACY_TABS = 'data';
 const LEGACY_ACTIVE = 'activeTab';
 const BROWSER_WORKSPACE = 'sandbox:workspace';
@@ -65,21 +81,25 @@ export const windowControls = {
   close: () => bridge?.window.close(),
   minimize: () => bridge?.window.minimize(),
   maximize: () => bridge?.window.maximize(),
-  isMaximized: async () => (await bridge?.window.isMaximized()) ?? false
+  isMaximized: async () => {
+    const result = await attempt(() => bridge?.window.isMaximized());
+    return result === true;
+  }
 };
 
 export const workspace = {
   read: async () => {
     if (bridge) {
-      const result = await bridge.workspace.read();
+      const result = await attempt(() => bridge.workspace.read());
       if (result?.ok && result.data) return result.data;
+      // A failed read must not lose an older localStorage workspace.
       return legacyWorkspace();
     }
     return readLocal(BROWSER_WORKSPACE) ?? legacyWorkspace();
   },
 
   write: async data => {
-    if (bridge) return bridge.workspace.write(data);
+    if (bridge) return attempt(() => bridge.workspace.write(data));
     return writeLocal(BROWSER_WORKSPACE, data);
   },
 
@@ -94,12 +114,12 @@ export const workspace = {
   },
 
   export: async data => {
-    if (bridge) return bridge.workspace.export(data);
+    if (bridge) return attempt(() => bridge.workspace.export(data));
     return downloadJson('sandbox-workspace.json', data);
   },
 
   import: async () => {
-    if (bridge) return bridge.workspace.import();
+    if (bridge) return attempt(() => bridge.workspace.import());
     const file = await pickFile('.json,application/json');
     if (!file) return { ok: false, canceled: true };
     try {
@@ -116,7 +136,7 @@ export const workspace = {
 
 export const files = {
   open: async () => {
-    if (bridge) return bridge.files.open();
+    if (bridge) return attempt(() => bridge.files.open());
     const file = await pickFile('.js,.mjs,.cjs,.jsx,.ts,.tsx');
     if (!file) return { ok: false, canceled: true };
     return {
@@ -127,22 +147,23 @@ export const files = {
   },
 
   save: async payload => {
-    if (bridge) return bridge.files.save(payload);
+    if (bridge) return attempt(() => bridge.files.save(payload));
     return downloadText(payload.name || 'snippet.js', payload.code);
   },
 
   saveAs: async payload => {
-    if (bridge) return bridge.files.saveAs(payload);
+    if (bridge) return attempt(() => bridge.files.saveAs(payload));
     return downloadText(payload.name || 'snippet.js', payload.code);
   }
 };
 
 export const appInfo = async () => {
-  if (bridge) return bridge.app.info();
+  if (bridge) return attempt(() => bridge.app.info());
   return { ok: true, version: 'dev', platform: 'browser' };
 };
 
-export const revealWorkspace = () => bridge?.app.revealWorkspace();
+export const revealWorkspace = () =>
+  attempt(() => bridge?.app.revealWorkspace());
 
 // --- browser-only helpers --------------------------------------------------
 

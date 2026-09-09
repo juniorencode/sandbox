@@ -14,10 +14,16 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     setupFiles: ['./src/test/setup.js'],
-    include: ['src/**/*.test.{js,jsx}'],
+    include: ['src/**/*.test.{js,jsx}', 'electron/**/*.test.js'],
     coverage: {
       provider: 'v8',
-      include: ['src/runtime/**', 'src/utilities/**', 'src/hooks/**'],
+      include: [
+        'src/runtime/**',
+        'src/utilities/**',
+        'src/hooks/**',
+        'src/platform/**',
+        'electron/**'
+      ],
       reporter: ['text', 'html']
     }
   }

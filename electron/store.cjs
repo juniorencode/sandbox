@@ -1,6 +1,5 @@
 const fs = require('fs');
 const path = require('path');
-const { app } = require('electron');
 
 /**
  * File-backed workspace storage.
@@ -14,16 +13,14 @@ const { app } = require('electron');
  * Writes go through a temp file and a rename so an interrupted write cannot
  * leave a half-written workspace behind, and the previous version is kept as
  * a sibling `.bak` that is used automatically if the main file is unreadable.
+ *
+ * The directory is a parameter rather than a call to `app.getPath`, so the
+ * store carries no dependency on a running Electron app and can be exercised
+ * directly.
  */
 
 const WORKSPACE = 'workspace.json';
 const CURRENT_VERSION = 1;
-
-const paths = () => {
-  const directory = app.getPath('userData');
-  const file = path.join(directory, WORKSPACE);
-  return { directory, file, backup: `${file}.bak`, temp: `${file}.tmp` };
-};
 
 const parse = contents => {
   const data = JSON.parse(contents);
@@ -34,37 +31,69 @@ const parse = contents => {
   return data;
 };
 
-/** @returns {object|null} the stored workspace, or null when there is none. */
-const read = () => {
-  const { file, backup } = paths();
-  for (const candidate of [file, backup]) {
-    try {
-      if (!fs.existsSync(candidate)) continue;
-      return parse(fs.readFileSync(candidate, 'utf8'));
-    } catch {
-      // Try the backup next. A corrupt file is not worth reporting as an
-      // error: the caller falls back to a fresh workspace either way.
+const createStore = directory => {
+  const file = path.join(directory, WORKSPACE);
+  const backup = `${file}.bak`;
+  const temp = `${file}.tmp`;
+
+  /** @returns {object|null} the stored workspace, or null when there is none. */
+  const read = () => {
+    for (const candidate of [file, backup]) {
+      try {
+        if (!fs.existsSync(candidate)) continue;
+        return parse(fs.readFileSync(candidate, 'utf8'));
+      } catch {
+        // Fall through to the backup. A corrupt file is not worth reporting:
+        // the caller starts from a fresh workspace either way.
+      }
     }
-  }
-  return null;
+    return null;
+  };
+
+  const write = data => {
+    fs.mkdirSync(directory, { recursive: true });
+
+    const payload = JSON.stringify(
+      { ...data, version: CURRENT_VERSION },
+      null,
+      2
+    );
+    fs.writeFileSync(temp, payload, 'utf8');
+
+    // Keep the last good copy before the new one takes its place.
+    try {
+      if (fs.existsSync(file)) fs.copyFileSync(file, backup);
+    } catch {
+      // A missing backup is survivable; losing the write is not.
+    }
+
+    fs.renameSync(temp, file);
+    return { path: file };
+  };
+
+  return { read, write, paths: () => ({ directory, file, backup, temp }) };
 };
 
-const write = data => {
-  const { directory, file, backup, temp } = paths();
-  fs.mkdirSync(directory, { recursive: true });
-
-  const payload = JSON.stringify({ ...data, version: CURRENT_VERSION }, null, 2);
-  fs.writeFileSync(temp, payload, 'utf8');
-
-  // Keep the last good copy before the new one takes its place.
-  try {
-    if (fs.existsSync(file)) fs.copyFileSync(file, backup);
-  } catch {
-    // A missing backup is survivable; losing the write is not.
+/**
+ * The app's own store, bound to Electron's userData directory.
+ *
+ * Electron is required lazily so importing this module outside a running app
+ * does not pull it in: outside Electron, `require('electron')` resolves to the
+ * path of the executable rather than the API.
+ */
+let appStore = null;
+const instance = () => {
+  if (!appStore) {
+    const { app } = require('electron');
+    appStore = createStore(app.getPath('userData'));
   }
-
-  fs.renameSync(temp, file);
-  return { path: file };
+  return appStore;
 };
 
-module.exports = { read, write, paths, CURRENT_VERSION };
+module.exports = {
+  createStore,
+  CURRENT_VERSION,
+  read: () => instance().read(),
+  write: data => instance().write(data),
+  paths: () => instance().paths()
+};

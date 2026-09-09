@@ -62,7 +62,7 @@ export const StatusBar = ({
         title={
           autoRun
             ? 'Auto-run is on: code runs as you type'
-            : 'Auto-run is off: run manually with Ctrl+Enter'
+            : 'Auto-run is off: use the Run button'
         }
       >
         {autoRun ? 'auto' : 'manual'}
@@ -71,7 +71,7 @@ export const StatusBar = ({
       <button
         className="flex items-center gap-1 rounded px-2 py-0.5 hover:bg-[#2d3641]"
         onClick={onRun}
-        title="Run now (Ctrl+Enter)"
+        title="Run now"
       >
         <VscPlay size={12} />
         Run
@@ -90,7 +90,7 @@ export const StatusBar = ({
       <button
         className="flex items-center gap-1 rounded px-2 py-0.5 hover:bg-[#2d3641]"
         onClick={onClear}
-        title="Clear output (Ctrl+K)"
+        title="Clear output"
       >
         <VscTrash size={12} />
         Clear

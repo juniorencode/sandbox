@@ -4,96 +4,41 @@ import { OutputPanel } from './components/OutputPanel';
 import { StatusBar } from './components/StatusBar';
 import { TabBar } from './components/TabBar';
 import { useEditorViewport } from './hooks/useEditorViewport.hook';
-import { useRunner } from './hooks/useRunner.hook';
+import { useRunner, STATUS } from './hooks/useRunner.hook';
+import { useWorkspace } from './hooks/useWorkspace.hook';
 import { ERROR } from './runtime/protocol.js';
 
 const RUN_DEBOUNCE_MS = 200;
-const PERSIST_DEBOUNCE_MS = 400;
 /** Hysteresis so the editor's bottom padding cannot oscillate. */
 const PADDING_TOLERANCE = 8;
 
-const readTabs = () => {
-  const saved = localStorage.getItem('data');
-  if (saved) {
-    try {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length) return parsed;
-    } catch {
-      // Corrupt storage used to take the whole app down: this parse ran during
-      // the initial render with no try/catch, and there is no devtools or menu
-      // in the packaged build to clear it from.
-    }
-  }
-  return [{ id: 1, name: 'Tab 1', code: '' }];
-};
-
 const App = () => {
-  const [tabs, setTabs] = useState(readTabs);
-  const [activeTab, setActiveTab] = useState(() => {
-    const saved = parseInt(localStorage.getItem('activeTab'), 10);
-    return Number.isInteger(saved) ? saved : 1;
-  });
-  const [editorSeparator, setEditorSeparator] = useState(() => {
-    const saved = parseFloat(localStorage.getItem('editorSeparator'));
-    return Number.isFinite(saved) ? saved : 60;
-  });
-  const [autoRun, setAutoRun] = useState(
-    () => localStorage.getItem('autoRun') !== 'false'
-  );
+  const {
+    loaded,
+    tabs,
+    activeTabId,
+    activeTab,
+    settings,
+    persistError,
+    setActive,
+    updateCode,
+    addTab,
+    closeTab,
+    renameTab,
+    moveTab,
+    updateSettings
+  } = useWorkspace();
+
   const [editor, setEditor] = useState(null);
   const [outputBottom, setOutputBottom] = useState(0);
   const [extraBottomPadding, setExtraBottomPadding] = useState(0);
 
   const runTimerRef = useRef(null);
-  const persistTimerRef = useRef(null);
+  const lastRunTabRef = useRef(null);
 
   const viewport = useEditorViewport(editor);
   const { entries, status, duration, overflowed, run, stop, clear, expand } =
-    useRunner();
-
-  /**
-   * An activeTab pointing at a tab that no longer exists left the editor
-   * apparently read-only: `value` fell back to '', the change handler found no
-   * matching tab, and the controlled value reverted every keystroke.
-   */
-  const current = useMemo(
-    () => tabs.find(tab => tab.id === activeTab) ?? tabs[0],
-    [tabs, activeTab]
-  );
-
-  useEffect(() => {
-    if (current && current.id !== activeTab) setActiveTab(current.id);
-  }, [current, activeTab]);
-
-  // Writing every tab's JSON on each keystroke blocked the main thread while
-  // typing, so persistence is debounced separately from the run.
-  useEffect(() => {
-    if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
-    persistTimerRef.current = setTimeout(() => {
-      persistTimerRef.current = null;
-      try {
-        localStorage.setItem('data', JSON.stringify(tabs));
-      } catch {
-        // Quota exceeded. Dropping the write is survivable; letting it throw
-        // from an effect took the whole renderer down with a blank window.
-      }
-    }, PERSIST_DEBOUNCE_MS);
-    return () => {
-      if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
-    };
-  }, [tabs]);
-
-  useEffect(() => {
-    localStorage.setItem('activeTab', String(activeTab));
-  }, [activeTab]);
-
-  useEffect(() => {
-    localStorage.setItem('editorSeparator', String(editorSeparator));
-  }, [editorSeparator]);
-
-  useEffect(() => {
-    localStorage.setItem('autoRun', String(autoRun));
-  }, [autoRun]);
+    useRunner({ timeoutMs: settings.timeoutMs });
 
   const runNow = useCallback(
     code => {
@@ -101,34 +46,32 @@ const App = () => {
         clearTimeout(runTimerRef.current);
         runTimerRef.current = null;
       }
-      run(code ?? current?.code ?? '');
+      run(code ?? activeTab?.code ?? '');
     },
-    [run, current]
+    [run, activeTab]
   );
 
   /**
    * The tab is updated immediately and only the run is debounced.
    *
-   * The old handler debounced both, and rebuilt the array from the `tabs`
-   * value captured when the timeout was scheduled. Switching or closing a tab
-   * inside that 200ms window wrote a stale array back: it could resurrect a
-   * closed tab, discard a new one, or store the code under the wrong tab.
+   * The old handler debounced both and rebuilt the tab array from the value
+   * captured when the timeout was scheduled, so switching or closing a tab
+   * inside that window wrote a stale array back: it could resurrect a closed
+   * tab, discard a new one, or save the code under the wrong tab.
    */
   const handleChange = useCallback(
     value => {
       const code = value ?? '';
-      setTabs(previous =>
-        previous.map(tab => (tab.id === activeTab ? { ...tab, code } : tab))
-      );
+      updateCode(activeTabId, code);
 
-      if (!autoRun) return;
+      if (!settings.autoRun) return;
       if (runTimerRef.current) clearTimeout(runTimerRef.current);
       runTimerRef.current = setTimeout(() => {
         runTimerRef.current = null;
         run(code);
       }, RUN_DEBOUNCE_MS);
     },
-    [activeTab, autoRun, run]
+    [activeTabId, settings.autoRun, run, updateCode]
   );
 
   useEffect(
@@ -138,14 +81,15 @@ const App = () => {
     []
   );
 
-  // Run once the worker is up, and whenever the active tab changes.
-  const lastRunTabRef = useRef(null);
+  // Run once the worker is up, and again whenever a different tab is shown.
+  // Switching tabs no longer has to push code into the worker by hand, which
+  // is what left the closed tab's output on screen.
   useEffect(() => {
-    if (status === 'starting' || !current) return;
-    if (lastRunTabRef.current === current.id) return;
-    lastRunTabRef.current = current.id;
-    run(current.code);
-  }, [current, status, run]);
+    if (!loaded || status === STATUS.STARTING || !activeTab) return;
+    if (lastRunTabRef.current === activeTab.id) return;
+    lastRunTabRef.current = activeTab.id;
+    run(activeTab.code);
+  }, [loaded, status, activeTab, run]);
 
   const markers = useMemo(
     () =>
@@ -177,43 +121,62 @@ const App = () => {
    * a fresh anonymous mouseup listener on every mousedown and never removed
    * any of them, so they accumulated for the life of the session.
    */
-  const startResize = useCallback(event => {
-    event.preventDefault();
+  const startResize = useCallback(
+    event => {
+      event.preventDefault();
 
-    const onMove = moveEvent => {
-      const percentage = (moveEvent.clientX / window.innerWidth) * 100;
-      setEditorSeparator(Math.min(Math.max(percentage, 20), 80));
-    };
+      const onMove = moveEvent => {
+        const percentage = (moveEvent.clientX / window.innerWidth) * 100;
+        updateSettings({
+          editorSeparator: Math.min(Math.max(percentage, 20), 80)
+        });
+      };
 
-    const onUp = () => {
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-      document.body.style.userSelect = '';
-    };
+      const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.body.style.userSelect = '';
+      };
 
-    document.body.style.userSelect = 'none';
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
-  }, []);
+      document.body.style.userSelect = 'none';
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    },
+    [updateSettings]
+  );
+
+  // The workspace is a file now, so the first paint happens before it is read.
+  if (!loaded) {
+    return <div className="h-screen bg-[#212830]" />;
+  }
 
   return (
     <div className="flex h-screen flex-col overflow-hidden">
       <TabBar
         tabs={tabs}
-        activeTab={activeTab}
-        setTabs={setTabs}
-        setActiveTab={setActiveTab}
+        activeTabId={activeTabId}
+        onSelect={setActive}
+        onClose={closeTab}
+        onCreate={addTab}
+        onRename={renameTab}
+        onMove={moveTab}
       />
+
+      {persistError && (
+        <div className="shrink-0 bg-[#3a2d15] px-3 py-1 text-[12px] text-[#e3b341]">
+          {`Could not save the workspace: ${persistError}`}
+        </div>
+      )}
 
       <div className="flex min-h-0 flex-1">
         <EditorPanel
-          value={current?.code ?? ''}
-          language="javascript"
+          value={activeTab?.code ?? ''}
+          language={settings.language}
           onChange={handleChange}
           onEditorReady={setEditor}
           markers={markers}
           extraBottomPadding={extraBottomPadding}
-          width={`${editorSeparator}vw`}
+          width={`${settings.editorSeparator}vw`}
         />
 
         <div
@@ -230,7 +193,7 @@ const App = () => {
           viewport={viewport}
           onExpand={expand}
           overflowed={overflowed}
-          width={`calc(${100 - editorSeparator}vw - 10px)`}
+          width={`calc(${100 - settings.editorSeparator}vw - 10px)`}
           onContentBottom={setOutputBottom}
         />
       </div>
@@ -239,8 +202,8 @@ const App = () => {
         status={status}
         duration={duration}
         entryCount={entries.length}
-        autoRun={autoRun}
-        onToggleAutoRun={() => setAutoRun(value => !value)}
+        autoRun={settings.autoRun}
+        onToggleAutoRun={() => updateSettings({ autoRun: !settings.autoRun })}
         onRun={() => runNow()}
         onStop={stop}
         onClear={clear}
