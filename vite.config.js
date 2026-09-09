@@ -20,6 +20,12 @@ export default defineConfig({
     // Component tests opt into jsdom with a `@vitest-environment` docblock.
     environment: 'node',
     globals: true,
+    // Isolation is not optional here, whatever the run summary suggests. The
+    // runner tests drive a worker by aliasing `self` to globalThis, install a
+    // sandbox console over the global one, and one of them replaces
+    // Array.prototype.filter to prove the logger survives it. Reusing a worker
+    // across files would leak all of that into whatever ran next.
+    isolate: true,
     setupFiles: ['./src/test/setup.js'],
     include: ['src/**/*.test.{js,jsx}', 'electron/**/*.test.js'],
     coverage: {

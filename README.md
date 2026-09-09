@@ -89,6 +89,11 @@ On macOS, `Cmd` replaces `Ctrl`.
 
 ## Development
 
+Needs Node 22.22.2 or newer, or 24.15.0 or newer. The toolchain sets the floor:
+jsdom loads undici, which needs a `worker_threads` API added after Node 20.
+`engines` is enforced at install time, so an unsupported version is reported
+by `npm install` rather than surfacing later as a confusing test failure.
+
 ```
 npm install
 npm run dev          # renderer only, in a browser tab
