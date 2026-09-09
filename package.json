@@ -21,6 +21,7 @@
     "@monaco-editor/react": "^4.6.0",
     "acorn": "^8.18.0",
     "acorn-walk": "^8.3.5",
+    "electron-updater": "^6.8.9",
     "magic-string": "^1.2.3",
     "monaco-editor": "^0.52.2",
     "prop-types": "^15.8.1",
@@ -63,6 +64,13 @@
       "main.cjs",
       "preload.cjs",
       "package.json"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "juniorencode",
+        "repo": "sandbox"
+      }
     ],
     "win": {
       "target": "nsis",
