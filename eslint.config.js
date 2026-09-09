@@ -5,7 +5,10 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 
 export default [
-  { ignores: ['dist'] },
+  // The Vite build writes to `build/` (see vite.config.js) and electron-builder
+  // writes to `dist/`. Linting only `dist` meant `npm run lint` was walking the
+  // minified renderer bundle and reporting ~2000 errors from generated code.
+  { ignores: ['dist', 'build', 'node_modules'] },
   {
     files: ['**/*.{js,jsx}'],
     languageOptions: {
