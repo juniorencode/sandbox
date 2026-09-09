@@ -29,7 +29,7 @@ const WORKSPACE_FILTERS = [
 
 const failed = error => ({ ok: false, error: String(error?.message || error) });
 
-const register = getWindow => {
+const register = (getWindow, { updates } = {}) => {
   const withWindow = action => (...args) => {
     const win = getWindow();
     if (!win) return { ok: false, error: 'no window' };
@@ -171,6 +171,18 @@ const register = getWindow => {
     chrome: process.versions.chrome,
     userData: app.getPath('userData')
   }));
+
+  ipcMain.handle('update:check', async () => {
+    if (!updates) return { ok: false, reason: 'no updater' };
+    return updates.check({ silent: false });
+  });
+
+  ipcMain.handle('update:download', async () => {
+    if (!updates) return { ok: false, reason: 'no updater' };
+    return updates.download();
+  });
+
+  ipcMain.on('update:install', () => updates?.install());
 
   ipcMain.handle('app:revealWorkspace', async () => {
     try {

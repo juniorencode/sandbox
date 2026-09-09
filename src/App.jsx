@@ -5,11 +5,14 @@ import { OutputPanel } from './components/OutputPanel';
 import { StatusBar } from './components/StatusBar';
 import { TabBar } from './components/TabBar';
 import { Toast } from './components/Toast';
+import { UpdateBanner } from './components/UpdateBanner';
 import { useCommands } from './hooks/useCommands.hook';
 import { useEditorViewport } from './hooks/useEditorViewport.hook';
 import { useFiles } from './hooks/useFiles.hook';
+import { useMenuBridge } from './hooks/useMenuBridge.hook';
 import { useRunner, STATUS } from './hooks/useRunner.hook';
 import { useShortcuts } from './hooks/useShortcuts.hook';
+import { useUpdates } from './hooks/useUpdates.hook';
 import { useWorkspace } from './hooks/useWorkspace.hook';
 import { ERROR } from './runtime/protocol.js';
 import { label } from './utilities/shortcut.utilities';
@@ -44,6 +47,7 @@ const App = () => {
     useRunner({ timeoutMs: settings.timeoutMs });
 
   const fileActions = useFiles(workspace);
+  const updateState = useUpdates();
 
   const runNow = useCallback(
     code => {
@@ -79,10 +83,12 @@ const App = () => {
     workspace,
     fileActions,
     palette,
-    settings
+    settings,
+    updates: updateState
   });
 
   useShortcuts(commands);
+  useMenuBridge(commands);
 
   /** Shortcut labels for the buttons, derived from the same registry. */
   const hints = useMemo(() => {
@@ -206,6 +212,13 @@ const App = () => {
         onRename={workspace.renameTab}
         onMove={workspace.moveTab}
         newTabHint={hints.newTab}
+      />
+
+      <UpdateBanner
+        state={updateState}
+        onDownload={updateState.download}
+        onInstall={updateState.install}
+        onDismiss={updateState.dismiss}
       />
 
       {persistError && (

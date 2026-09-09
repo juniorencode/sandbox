@@ -15,9 +15,10 @@
  */
 const path = require('path');
 const fs = require('fs');
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, session } = require('electron');
 const store = require('../electron/store.cjs');
 const ipc = require('../electron/ipc.cjs');
+const security = require('../electron/security.cjs');
 
 const ROOT = path.join(__dirname, '..');
 const VISIBLE = process.argv.includes('--show');
@@ -87,6 +88,11 @@ app.whenReady().then(async () => {
   // to talk to.
   ipc.register(() => currentWindow);
 
+  // The same policy main.cjs installs. A Content Security Policy that is too
+  // strict only breaks in a packaged build, so it has to be part of what is
+  // being verified rather than something the harness relaxes.
+  security.apply(session.defaultSession);
+
   const indexFile = path.join(ROOT, 'build', 'index.html');
   if (!fs.existsSync(indexFile)) {
     bail('No build found. Run `npm run build-vite` first.');
@@ -100,9 +106,13 @@ app.whenReady().then(async () => {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
+      // Mirrors main.cjs: the renderer ships sandboxed.
+      sandbox: true,
       preload: path.join(ROOT, 'preload.cjs')
     }
   });
+
+  security.guardNavigation(win.webContents);
 
   currentWindow = win;
 
@@ -128,6 +138,11 @@ app.whenReady().then(async () => {
     // builds and is not something the page did wrong.
     if (level === 3 && !message.includes('Electron Security Warning')) {
       problems.push('renderer console error: ' + message);
+    }
+    // A blocked resource is reported as a warning, not an error, so it has to
+    // be matched explicitly or a too-strict policy passes unnoticed.
+    if (/Content Security Policy|Refused to/i.test(message)) {
+      problems.push('CSP blocked something: ' + message);
     }
   });
   win.webContents.on('render-process-gone', (_event, details) =>

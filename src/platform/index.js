@@ -162,6 +162,22 @@ export const appInfo = async () => {
   return { ok: true, version: 'dev', platform: 'browser' };
 };
 
+/**
+ * Native menu entries, routed to the renderer's command registry.
+ *
+ * Returns an unsubscribe function, and a no-op one in the browser, so callers
+ * do not have to know whether the bridge exists.
+ */
+export const onMenuCommand = callback =>
+  bridge?.app.onCommand(callback) ?? (() => {});
+
+export const updates = {
+  check: () => attempt(() => bridge?.updates.check(), { ok: false }),
+  download: () => attempt(() => bridge?.updates.download(), { ok: false }),
+  install: () => bridge?.updates.install(),
+  onEvent: callback => bridge?.updates.onEvent(callback) ?? (() => {})
+};
+
 export const revealWorkspace = () =>
   attempt(() => bridge?.app.revealWorkspace());
 

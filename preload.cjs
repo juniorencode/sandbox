@@ -5,8 +5,17 @@ const { contextBridge, ipcRenderer } = require('electron');
  *
  * Grouped by concern rather than flat, so the renderer-side adapter in
  * src/platform can mirror it and the whole runtime dependency stays in one
- * small, replaceable place.
+ * small, replaceable place. Nothing here forwards the raw IpcRendererEvent to
+ * the page: listeners receive only the payload, so a callback cannot reach
+ * `event.sender` and from there the rest of the process.
  */
+
+const subscribe = (channel, callback) => {
+  const listener = (_event, payload) => callback(payload);
+  ipcRenderer.on(channel, listener);
+  return () => ipcRenderer.removeListener(channel, listener);
+};
+
 contextBridge.exposeInMainWorld('sandbox', {
   window: {
     close: () => ipcRenderer.send('window:close'),
@@ -30,6 +39,30 @@ contextBridge.exposeInMainWorld('sandbox', {
 
   app: {
     info: () => ipcRenderer.invoke('app:info'),
-    revealWorkspace: () => ipcRenderer.invoke('app:revealWorkspace')
+    revealWorkspace: () => ipcRenderer.invoke('app:revealWorkspace'),
+    // Menu entries run through the renderer's command registry rather than
+    // being a second implementation of the same actions.
+    onCommand: callback => subscribe('menu:command', callback)
+  },
+
+  updates: {
+    check: () => ipcRenderer.invoke('update:check'),
+    download: () => ipcRenderer.invoke('update:download'),
+    install: () => ipcRenderer.send('update:install'),
+    onEvent: callback => {
+      const channels = [
+        'update:available',
+        'update:none',
+        'update:progress',
+        'update:ready',
+        'update:error'
+      ];
+      const off = channels.map(channel =>
+        subscribe(channel, payload =>
+          callback({ type: channel.replace('update:', ''), ...payload })
+        )
+      );
+      return () => off.forEach(dispose => dispose());
+    }
   }
 });

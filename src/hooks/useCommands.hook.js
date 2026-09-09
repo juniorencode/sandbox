@@ -13,7 +13,8 @@ export const useCommands = ({
   workspace,
   fileActions,
   palette,
-  settings
+  settings,
+  updates
 }) =>
   useMemo(() => {
     const tabIndex = () =>
@@ -127,6 +128,12 @@ export const useCommands = ({
         title: 'Show workspace folder',
         group: 'Workspace',
         run: fileActions.showWorkspaceFolder
+      },
+      {
+        id: 'app.checkUpdates',
+        title: 'Check for updates',
+        group: 'General',
+        run: updates.check
       }
     ];
-  }, [runner, workspace, fileActions, palette, settings.autoRun]);
+  }, [runner, workspace, fileActions, palette, settings.autoRun, updates]);
