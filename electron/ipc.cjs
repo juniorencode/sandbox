@@ -29,7 +29,10 @@ const WORKSPACE_FILTERS = [
 
 const failed = error => ({ ok: false, error: String(error?.message || error) });
 
-const register = (getWindow, { updates } = {}) => {
+const register = (
+  getWindow,
+  { updates, moduleServer, setAllowModuleDownloads } = {}
+) => {
   const withWindow = action => (...args) => {
     const win = getWindow();
     if (!win) return { ok: false, error: 'no window' };
@@ -171,6 +174,20 @@ const register = (getWindow, { updates } = {}) => {
     chrome: process.versions.chrome,
     userData: app.getPath('userData')
   }));
+
+  // --- module cache ---------------------------------------------------------
+
+  ipcMain.handle('modules:stats', () =>
+    moduleServer ? moduleServer.stats() : { ok: false, error: 'no cache' }
+  );
+
+  ipcMain.handle('modules:clear', () =>
+    moduleServer ? moduleServer.clear() : { ok: false, error: 'no cache' }
+  );
+
+  ipcMain.on('modules:setAllowed', (_event, allowed) =>
+    setAllowModuleDownloads?.(Boolean(allowed))
+  );
 
   ipcMain.handle('update:check', async () => {
     if (!updates) return { ok: false, reason: 'no updater' };

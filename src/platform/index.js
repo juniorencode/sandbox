@@ -171,6 +171,12 @@ export const appInfo = async () => {
 export const onMenuCommand = callback =>
   bridge?.app.onCommand(callback) ?? (() => {});
 
+export const modules = {
+  stats: () => attempt(() => bridge?.modules.stats(), { ok: false }),
+  clear: () => attempt(() => bridge?.modules.clear(), { ok: false }),
+  setAllowed: allowed => bridge?.modules.setAllowed(allowed)
+};
+
 export const updates = {
   check: () => attempt(() => bridge?.updates.check(), { ok: false }),
   download: () => attempt(() => bridge?.updates.download(), { ok: false }),

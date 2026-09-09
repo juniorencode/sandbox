@@ -24,7 +24,10 @@ export const DEFAULT_SETTINGS = {
   editorSeparator: 60,
   autoRun: true,
   timeoutMs: 5000,
-  language: 'javascript'
+  language: 'javascript',
+  // Whether a package that is not cached yet may be downloaded. Cached
+  // packages always load, so turning this off does not break existing code.
+  allowModuleDownloads: true
 };
 
 const freshTab = (id, name) => ({

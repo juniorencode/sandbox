@@ -14,6 +14,7 @@ import { useRunner, STATUS } from './hooks/useRunner.hook';
 import { useShortcuts } from './hooks/useShortcuts.hook';
 import { useUpdates } from './hooks/useUpdates.hook';
 import { useWorkspace } from './hooks/useWorkspace.hook';
+import { modules } from './platform';
 import { ERROR } from './runtime/protocol.js';
 import { label } from './utilities/shortcut.utilities';
 
@@ -131,6 +132,12 @@ const App = () => {
     },
     []
   );
+
+  // The module handler lives in the main process and answers without asking
+  // the renderer, so the setting is pushed to it rather than queried.
+  useEffect(() => {
+    modules.setAllowed(settings.allowModuleDownloads);
+  }, [settings.allowModuleDownloads]);
 
   // Run once the worker is up, and again whenever a different tab is shown.
   // Switching tabs no longer has to push code into the worker by hand, which

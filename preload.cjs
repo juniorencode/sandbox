@@ -45,6 +45,12 @@ contextBridge.exposeInMainWorld('sandbox', {
     onCommand: callback => subscribe('menu:command', callback)
   },
 
+  modules: {
+    stats: () => ipcRenderer.invoke('modules:stats'),
+    clear: () => ipcRenderer.invoke('modules:clear'),
+    setAllowed: allowed => ipcRenderer.send('modules:setAllowed', allowed)
+  },
+
   updates: {
     check: () => ipcRenderer.invoke('update:check'),
     download: () => ipcRenderer.invoke('update:download'),

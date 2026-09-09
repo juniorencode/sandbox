@@ -14,6 +14,7 @@ import {
 import { createSerializer } from './serialize.js';
 import { createConsole } from './console.js';
 import { instrument } from './instrument.js';
+import { resolve } from './modules.js';
 import {
   AsyncFunction,
   tagSource,
@@ -120,10 +121,10 @@ self.clearInterval = tracked.clearInterval;
 
 /**
  * Bare module specifiers are handed here at runtime by the instrumented code.
- * Resolution is intentionally a seam so where modules come from can change
- * without touching the transform.
+ * A throw from the resolver reaches the sandbox as a normal error on the line
+ * that wrote the import.
  */
-const resolveSpecifier = specifier => specifier;
+const resolveSpecifier = specifier => resolve(specifier);
 
 const makeEmitter = runId => payload => {
   try {
