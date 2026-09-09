@@ -1,4 +1,5 @@
 const { shell } = require('electron');
+const { SCHEME: MODULE_SCHEME } = require('./modules.cjs');
 
 /**
  * Renderer hardening.
@@ -18,12 +19,15 @@ const { shell } = require('electron');
  */
 const POLICY = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-eval'",
+  // The private module scheme is served by the main process from a local
+  // cache, so packages load without opening the renderer to a third-party
+  // origin and without any network access once cached.
+  `script-src 'self' 'unsafe-eval' ${MODULE_SCHEME}:`,
   // Monaco injects its own stylesheets at runtime.
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
   "font-src 'self'",
-  "connect-src 'self'",
+  `connect-src 'self' ${MODULE_SCHEME}:`,
   // Vite emits the runner and Monaco's language services as separate chunks.
   "worker-src 'self' blob:",
   "object-src 'none'",

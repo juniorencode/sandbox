@@ -19,6 +19,7 @@ const { app, BrowserWindow, session } = require('electron');
 const store = require('../electron/store.cjs');
 const ipc = require('../electron/ipc.cjs');
 const security = require('../electron/security.cjs');
+const modules = require('../electron/modules.cjs');
 
 const ROOT = path.join(__dirname, '..');
 const VISIBLE = process.argv.includes('--show');
@@ -69,6 +70,10 @@ const expect = (condition, message) => {
 
 app.commandLine.appendSwitch('disable-gpu');
 
+// Privileged schemes must be declared before the app is ready, exactly as
+// main.cjs does it, or `import()` of the module scheme is rejected.
+modules.registerScheme();
+
 const bail = message => {
   console.error(message);
   app.exit(1);
@@ -93,6 +98,11 @@ app.whenReady().then(async () => {
   // being verified rather than something the harness relaxes.
   security.apply(session.defaultSession);
 
+  const moduleServer = modules.createModuleServer(app.getPath('userData'), {
+    allow: () => true
+  });
+  moduleServer.install();
+
   const indexFile = path.join(ROOT, 'build', 'index.html');
   if (!fs.existsSync(indexFile)) {
     bail('No build found. Run `npm run build-vite` first.');
@@ -115,6 +125,9 @@ app.whenReady().then(async () => {
   security.guardNavigation(win.webContents);
 
   currentWindow = win;
+
+  // Declared once: both the initial reset and the module phase clear these.
+  const { file: workspaceFile, backup: workspaceBackup } = store.paths();
 
   /**
    * The whole point of bundling Monaco was that the editor must not depend on
@@ -159,8 +172,7 @@ app.whenReady().then(async () => {
   // The workspace is a file now, so clearing localStorage is not enough; the
   // 1.x keys are cleared too so the migration path does not repopulate it.
   await win.webContents.executeJavaScript('localStorage.clear(); true');
-  const { file, backup } = store.paths();
-  for (const target of [file, backup]) {
+  for (const target of [workspaceFile, workspaceBackup]) {
     try {
       if (fs.existsSync(target)) fs.unlinkSync(target);
     } catch {
@@ -209,6 +221,52 @@ app.whenReady().then(async () => {
     ran.status.includes('Done'),
     `expected a settled status bar, got: ${JSON.stringify(ran.status)}`
   );
+
+  /**
+   * Module loading, which the previous engine could not do at all.
+   *
+   * Runs in both modes on purpose: offline is where the design has to prove
+   * itself, since serving modules over a private scheme from a disk cache is
+   * only worth the machinery if a package used once keeps working with no
+   * network. It is skipped only when there is neither a cache nor a network.
+   */
+  const cache = moduleServer.stats();
+  if (ONLINE || cache.count > 0) {
+    await win.webContents.executeJavaScript('localStorage.clear(); true');
+    for (const target of [workspaceFile, workspaceBackup]) {
+      try {
+        if (fs.existsSync(target)) fs.unlinkSync(target);
+      } catch {
+        /* nothing to clean */
+      }
+    }
+    await win.webContents.reload();
+    await sleep(2500);
+
+    win.webContents.focus();
+    win.webContents.sendInputEvent({ type: 'mouseDown', x: 300, y: 200, button: 'left', clickCount: 1 });
+    win.webContents.sendInputEvent({ type: 'mouseUp', x: 300, y: 200, button: 'left', clickCount: 1 });
+    await sleep(300);
+
+    await typeText(win, "import { nanoid } from 'nanoid'");
+    pressEnter(win);
+    await typeText(win, 'console.log(typeof nanoid(), nanoid().length)');
+    // The first run has to reach the registry, so this waits longer.
+    await sleep(9000);
+
+    const imported = await readState(win);
+    console.log(
+      'import :',
+      JSON.stringify(imported.output),
+      ONLINE ? '(network allowed)' : `(offline, ${cache.count} cached files)`
+    );
+    expect(
+      imported.output.includes('string') && imported.output.includes('21'),
+      `an npm import did not produce a value: ${JSON.stringify(imported.output)}`
+    );
+  } else {
+    console.log('import : skipped (no cached packages and no network)');
+  }
 
   if (SHOT) {
     const image = await win.webContents.capturePage();
