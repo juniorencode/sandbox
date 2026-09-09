@@ -4,6 +4,9 @@
   "description": "Sandbox is a hot-reloading scratchpad for JavaScript and TypeScript. Output is anchored to the line that produced it, values render as inspectable trees, npm packages load from a local cache, and a tab can be evaluated in a real Node process.",
   "version": "2.1.0",
   "type": "module",
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+  },
   "main": "./main.cjs",
   "scripts": {
     "dev": "vite",

@@ -9,22 +9,51 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Both supported majors. This job used to pin Node 20, which the
+        # toolchain no longer runs on: jsdom loads undici, and undici 8 needs
+        # worker_threads.markAsUncloneable, added after Node 20. The three
+        # jsdom test files could not start at all, and the failure surfaced as
+        # "markAsUncloneable is not a function" rather than as a version
+        # mismatch. Testing both majors is what keeps that from recurring
+        # silently on one of them.
+        node-version: [22, 24]
+
+    name: check (node ${{ matrix.node-version }})
+
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ matrix.node-version }}
           cache: npm
 
-      # `npm ci` installs from the lockfile only. prop-types used to resolve
-      # by accident as a hoisted dev dependency of eslint-plugin-react, so a
-      # production install produced a build that failed to resolve the import.
+      # Installs from the lockfile only, which is what would have caught the
+      # undeclared prop-types dependency. With engine-strict set in .npmrc,
+      # an unsupported Node fails here with the required and actual versions
+      # instead of part-way through the test run.
       - run: npm ci
 
       - run: npm run lint
 
       - run: npm test
+
+  build:
+    runs-on: ubuntu-latest
+    needs: check
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
 
       - run: npm run build-vite
 
@@ -38,3 +67,15 @@ jobs:
           ls build/assets/ts.worker-*.js >/dev/null
           ls build/assets/editor.worker-*.js >/dev/null
           echo "Monaco language services are bundled."
+
+      # The Node-mode runtime is a separate bundle, and it failed to start in a
+      # packaged build once because its dependencies were left external.
+      - name: Fail if the Node runtime is not self-contained
+        run: |
+          ls build/node-runner.cjs >/dev/null
+          if grep -oE 'require\("[^"]+"\)' build/node-runner.cjs \
+            | grep -v 'require("node:' ; then
+            echo "The Node runtime requires something that is not a builtin."
+            exit 1
+          fi
+          echo "The Node runtime bundles everything but Node builtins."
