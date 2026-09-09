@@ -41,6 +41,10 @@ export const StatusBar = ({
   duration,
   entryCount,
   autoRun,
+  language,
+  languages,
+  transpiler,
+  onLanguageChange,
   hints = {},
   onToggleAutoRun,
   onRun,
@@ -64,7 +68,32 @@ export const StatusBar = ({
 
     <span>{`${entryCount} ${entryCount === 1 ? 'entry' : 'entries'}`}</span>
 
+    {/* The compiler is loaded on demand, so its state belongs next to the
+        language it applies to rather than in a dialog. */}
+    {language !== 'javascript' && transpiler?.status === 'loading' && (
+      <span className="text-[#e3b341]">compiler loading…</span>
+    )}
+    {language !== 'javascript' && transpiler?.status === 'error' && (
+      <span className="text-[#ff7b72]" title={transpiler.message}>
+        compiler unavailable
+      </span>
+    )}
+
     <div className="ml-auto flex items-center gap-1">
+      <select
+        className="rounded bg-transparent px-1 py-0.5 text-[12px] text-[#9198A1] outline-none hover:bg-[#2d3641]"
+        value={language}
+        onChange={event => onLanguageChange(event.target.value)}
+        title="Language for this tab"
+        aria-label="Language for this tab"
+      >
+        {languages.map(option => (
+          <option key={option} value={option} className="bg-[#1b212b]">
+            {option}
+          </option>
+        ))}
+      </select>
+
       <button
         className={`flex items-center gap-1 rounded px-2 py-0.5 hover:bg-[#2d3641] ${
           autoRun ? 'text-[#3fb950]' : ''
@@ -127,6 +156,13 @@ StatusBar.propTypes = {
   duration: PropTypes.number,
   entryCount: PropTypes.number.isRequired,
   autoRun: PropTypes.bool.isRequired,
+  language: PropTypes.string.isRequired,
+  languages: PropTypes.arrayOf(PropTypes.string).isRequired,
+  transpiler: PropTypes.shape({
+    status: PropTypes.string,
+    message: PropTypes.string
+  }),
+  onLanguageChange: PropTypes.func.isRequired,
   hints: PropTypes.objectOf(PropTypes.string),
   onToggleAutoRun: PropTypes.func.isRequired,
   onRun: PropTypes.func.isRequired,

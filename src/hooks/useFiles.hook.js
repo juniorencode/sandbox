@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { files, revealWorkspace, workspace as store } from '../platform';
+import { languageForName } from './useWorkspace.hook';
 
 /**
  * Opening and saving real files, and moving the whole workspace in and out.
@@ -41,7 +42,13 @@ export const useFiles = ({
         setTabPath(existing.id, { path: file.path, name: file.name });
         return;
       }
-      addTab({ name: file.name, code: file.code, path: file.path });
+      addTab({
+        name: file.name,
+        code: file.code,
+        path: file.path,
+        // A .ts file should not need the language picking by hand.
+        language: languageForName(file.name)
+      });
     });
 
     report(

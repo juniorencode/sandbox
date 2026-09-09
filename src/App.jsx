@@ -14,9 +14,11 @@ import { useRunner, STATUS } from './hooks/useRunner.hook';
 import { useShortcuts } from './hooks/useShortcuts.hook';
 import { useUpdates } from './hooks/useUpdates.hook';
 import { useWorkspace } from './hooks/useWorkspace.hook';
-import { modules } from './platform';
+import { assets, modules } from './platform';
 import { ERROR } from './runtime/protocol.js';
 import { label } from './utilities/shortcut.utilities';
+
+const LANGUAGES = ['javascript', 'jsx', 'typescript', 'tsx'];
 
 const RUN_DEBOUNCE_MS = 200;
 /** Hysteresis so the editor's bottom padding cannot oscillate. */
@@ -44,8 +46,20 @@ const App = () => {
   const lastRunTabRef = useRef(null);
 
   const viewport = useEditorViewport(editor);
-  const { entries, status, duration, overflowed, run, stop, clear, expand } =
-    useRunner({ timeoutMs: settings.timeoutMs });
+  const {
+    entries,
+    status,
+    duration,
+    overflowed,
+    transpiler,
+    run,
+    stop,
+    clear,
+    expand,
+    initTranspiler
+  } = useRunner({ timeoutMs: settings.timeoutMs });
+
+  const language = activeTab?.language ?? 'javascript';
 
   const fileActions = useFiles(workspace);
   const updateState = useUpdates();
@@ -56,9 +70,9 @@ const App = () => {
         clearTimeout(runTimerRef.current);
         runTimerRef.current = null;
       }
-      run(code ?? activeTab?.code ?? '');
+      run(code ?? activeTab?.code ?? '', { language });
     },
-    [run, activeTab]
+    [run, activeTab, language]
   );
 
   const toggleAutoRun = useCallback(
@@ -120,10 +134,10 @@ const App = () => {
       if (runTimerRef.current) clearTimeout(runTimerRef.current);
       runTimerRef.current = setTimeout(() => {
         runTimerRef.current = null;
-        run(code);
+        run(code, { language });
       }, RUN_DEBOUNCE_MS);
     },
-    [activeTabId, settings.autoRun, run, updateCode]
+    [activeTabId, settings.autoRun, run, updateCode, language]
   );
 
   useEffect(
@@ -132,6 +146,32 @@ const App = () => {
     },
     []
   );
+
+  /**
+   * The compiler is only loaded once a tab actually needs it: the wasm binary
+   * is 14 MB, and a workspace that never leaves JavaScript should not pay for
+   * it. Re-running once it is ready is what turns the placeholder message
+   * into real output.
+   */
+  useEffect(() => {
+    if (language === 'javascript' || transpiler.status !== 'idle') return;
+    let cancelled = false;
+    assets.esbuildWasm().then(result => {
+      if (cancelled) return;
+      if (result?.ok) initTranspiler(result.wasm);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [language, transpiler.status, initTranspiler]);
+
+  useEffect(() => {
+    if (transpiler.status !== 'ready' || !activeTab) return;
+    if (activeTab.language === 'javascript') return;
+    run(activeTab.code, { language: activeTab.language });
+    // Only when the compiler becomes available; edits are handled elsewhere.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transpiler.status]);
 
   // The module handler lives in the main process and answers without asking
   // the renderer, so the setting is pushed to it rather than queried.
@@ -146,7 +186,7 @@ const App = () => {
     if (!loaded || status === STATUS.STARTING || !activeTab) return;
     if (lastRunTabRef.current === activeTab.id) return;
     lastRunTabRef.current = activeTab.id;
-    run(activeTab.code);
+    run(activeTab.code, { language: activeTab.language ?? 'javascript' });
   }, [loaded, status, activeTab, run]);
 
   const markers = useMemo(
@@ -237,7 +277,7 @@ const App = () => {
       <div className="flex min-h-0 flex-1">
         <EditorPanel
           value={activeTab?.code ?? ''}
-          language={settings.language}
+          language={language}
           onChange={handleChange}
           onEditorReady={setEditor}
           markers={markers}
@@ -269,6 +309,10 @@ const App = () => {
         duration={duration}
         entryCount={entries.length}
         autoRun={settings.autoRun}
+        language={language}
+        languages={LANGUAGES}
+        transpiler={transpiler}
+        onLanguageChange={value => workspace.setTabLanguage(activeTabId, value)}
         hints={hints}
         onToggleAutoRun={toggleAutoRun}
         onRun={() => runNow()}

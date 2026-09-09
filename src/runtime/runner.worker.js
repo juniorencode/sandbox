@@ -2,6 +2,7 @@ import {
   RUN,
   CANCEL,
   EXPAND,
+  INIT,
   READY,
   ERROR,
   SETTLED,
@@ -15,6 +16,8 @@ import { createSerializer } from './serialize.js';
 import { createConsole } from './console.js';
 import { instrument } from './instrument.js';
 import { resolve } from './modules.js';
+import { identityMapper } from './sourcemap.js';
+import { initialize, isTranspiled, transpile } from './transpile.js';
 import {
   AsyncFunction,
   tagSource,
@@ -64,6 +67,7 @@ let lineOffset = 2;
 let activeRunId = null;
 let activeEmit = null;
 let activeSerializer = null;
+let activeMapper = identityMapper;
 let sequence = 0;
 
 /**
@@ -135,9 +139,19 @@ const makeEmitter = runId => payload => {
   }
 };
 
+/**
+ * A stack refers to the instrumented text, which for a transpiled tab is not
+ * what the user wrote, so positions are mapped back before being reported.
+ */
+const toOriginal = at => {
+  if (!at) return null;
+  const mapped = activeMapper.lookup(at.line, at.column);
+  return mapped ?? at;
+};
+
 const reportThrow = (emit, thrown, phase) => {
   const { name, message } = describeThrown(thrown);
-  const at = locate(thrown, lineOffset);
+  const at = toOriginal(locate(thrown, lineOffset));
   emit({
     t: ERROR,
     phase,
@@ -145,7 +159,10 @@ const reportThrow = (emit, thrown, phase) => {
     message,
     line: at?.line ?? null,
     column: at?.column ?? null,
-    frames: cleanStack(thrown, lineOffset)
+    frames: cleanStack(thrown, lineOffset).map(frame => {
+      const mapped = activeMapper.lookup(frame.line, frame.column);
+      return mapped ? { ...frame, ...mapped } : frame;
+    })
   });
 };
 
@@ -167,7 +184,30 @@ const run = async ({ runId, code, options }) => {
   // `console`, or passes it around as a value rather than calling it directly.
   self.console = sandboxConsole.fallback;
 
-  const { code: transformed, error: syntaxError } = instrument(code);
+  const language = options?.language ?? 'javascript';
+
+  // Type annotations and JSX are stripped first; positions are then mapped
+  // back so everything downstream reports the code the user wrote.
+  const compiled = await transpile(code, language);
+  activeMapper = compiled.mapper;
+
+  if (compiled.error) {
+    emit({
+      t: ERROR,
+      phase: PHASE_COMPILE,
+      name: language === 'javascript' ? 'SyntaxError' : 'CompileError',
+      message: compiled.error.message,
+      line: compiled.error.line,
+      column: compiled.error.column,
+      frames: []
+    });
+    emit({ t: SETTLED, durationMs: 0 });
+    return;
+  }
+
+  const { code: transformed, error: syntaxError } = instrument(compiled.code, {
+    mapper: isTranspiled(language) ? compiled.mapper : undefined
+  });
 
   if (syntaxError) {
     emit({
@@ -205,6 +245,20 @@ self.onmessage = event => {
   switch (message.t) {
     case RUN:
       run(message);
+      break;
+
+    case INIT:
+      // The wasm binary cannot be fetched from a file:// page, so the main
+      // process reads it and the renderer posts the bytes in.
+      initialize(message.wasm).then(
+        () => self.postMessage({ t: READY, transpiler: true }),
+        error =>
+          self.postMessage({
+            t: READY,
+            transpiler: false,
+            error: String(error?.message || error)
+          })
+      );
       break;
 
     case CANCEL:
