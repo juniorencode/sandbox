@@ -16,6 +16,8 @@
 const path = require('path');
 const fs = require('fs');
 const { app, BrowserWindow } = require('electron');
+const store = require('../electron/store.cjs');
+const ipc = require('../electron/ipc.cjs');
 
 const ROOT = path.join(__dirname, '..');
 const VISIBLE = process.argv.includes('--show');
@@ -77,7 +79,14 @@ process.on('uncaughtException', error =>
   bail('\nFAILED: ' + (error?.stack || error))
 );
 
+let currentWindow = null;
+
 app.whenReady().then(async () => {
+  // This script is its own Electron main process, so it has to register the
+  // same channels main.cjs does or the renderer's workspace read has nothing
+  // to talk to.
+  ipc.register(() => currentWindow);
+
   const indexFile = path.join(ROOT, 'build', 'index.html');
   if (!fs.existsSync(indexFile)) {
     bail('No build found. Run `npm run build-vite` first.');
@@ -94,6 +103,8 @@ app.whenReady().then(async () => {
       preload: path.join(ROOT, 'preload.cjs')
     }
   });
+
+  currentWindow = win;
 
   /**
    * The whole point of bundling Monaco was that the editor must not depend on
@@ -130,7 +141,17 @@ app.whenReady().then(async () => {
   await sleep(2500);
 
   // Start from a known workspace rather than whatever was last persisted.
+  // The workspace is a file now, so clearing localStorage is not enough; the
+  // 1.x keys are cleared too so the migration path does not repopulate it.
   await win.webContents.executeJavaScript('localStorage.clear(); true');
+  const { file, backup } = store.paths();
+  for (const target of [file, backup]) {
+    try {
+      if (fs.existsSync(target)) fs.unlinkSync(target);
+    } catch {
+      /* a leftover workspace only makes the assertions stricter */
+    }
+  }
   await win.webContents.reload();
   await sleep(2500);
 

@@ -24,3 +24,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Scratch directory used by the main-process tests
+.test-tmp

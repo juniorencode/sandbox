@@ -8,6 +8,12 @@
   -webkit-app-region: no-drag;
 }
 
+/* A tab sits inside the window's drag region, which swallows the pointer
+   before HTML5 drag-and-drop can start, so tabs opt out of it. */
+.drag-bar .tab {
+  -webkit-app-region: no-drag;
+}
+
 .indicator::before {
   content: '';
   position: absolute;
