@@ -2,7 +2,11 @@ import PropTypes from 'prop-types';
 import { useEffect, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import { monaco } from '../../editor/monaco.setup.js';
-import { githubDarkTheme } from '../../utilities/theme.utilities';
+import {
+  githubDarkTheme,
+  githubLightTheme,
+  monacoThemeFor
+} from '../../utilities/theme.utilities';
 
 /**
  * The editor pane.
@@ -40,6 +44,7 @@ export const EditorPanel = ({
   fontSize,
   tabSize,
   wordWrap,
+  appearance,
   style
 }) => {
   const editorRef = useRef(null);
@@ -50,7 +55,10 @@ export const EditorPanel = ({
   };
 
   const handleBeforeMount = instance => {
+    // Both are defined up front so switching is a theme change rather than
+    // a remount.
     instance.editor.defineTheme('github-dark-theme', githubDarkTheme);
+    instance.editor.defineTheme('github-light-theme', githubLightTheme);
 
     // The editor is a scratchpad, not a project: unresolved imports and
     // implicit globals are normal here and should not be underlined.
@@ -114,7 +122,7 @@ export const EditorPanel = ({
   return (
     <div className="min-h-0 min-w-0" style={style}>
       <Editor
-        theme="github-dark-theme"
+        theme={monacoThemeFor(appearance)}
         language={MONACO_LANGUAGE[language] ?? 'javascript'}
         value={value}
         options={{
@@ -153,5 +161,6 @@ EditorPanel.propTypes = {
   fontSize: PropTypes.number.isRequired,
   tabSize: PropTypes.number.isRequired,
   wordWrap: PropTypes.bool.isRequired,
+  appearance: PropTypes.oneOf(['dark', 'light']).isRequired,
   style: PropTypes.object.isRequired
 };

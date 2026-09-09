@@ -104,12 +104,12 @@ export const CommandPalette = ({ commands, open, onClose }) => {
       role="presentation"
     >
       <div
-        className="w-[min(560px,90vw)] overflow-hidden rounded-lg border border-[#2d3641] bg-[#1b212b] shadow-2xl"
+        className="w-[min(560px,90vw)] overflow-hidden rounded-lg border border-line bg-panel shadow-2xl"
         onMouseDown={event => event.stopPropagation()}
       >
         <input
           ref={inputRef}
-          className="w-full bg-transparent px-4 py-3 text-[14px] text-neutral-200 outline-none placeholder:text-[#6b7280]"
+          className="w-full bg-transparent px-4 py-3 text-[14px] text-ink outline-none placeholder:text-faint"
           placeholder="Type a command…"
           value={query}
           onChange={event => setQuery(event.target.value)}
@@ -119,11 +119,11 @@ export const CommandPalette = ({ commands, open, onClose }) => {
 
         <div
           ref={listRef}
-          className="max-h-80 overflow-y-auto border-t border-[#2d3641]"
+          className="max-h-80 overflow-y-auto border-t border-line"
           role="listbox"
         >
           {!results.length && (
-            <div className="px-4 py-3 text-[13px] text-[#9198A1]">
+            <div className="px-4 py-3 text-[13px] text-muted">
               No matching commands
             </div>
           )}
@@ -136,18 +136,18 @@ export const CommandPalette = ({ commands, open, onClose }) => {
               aria-selected={index === cursor}
               className={`flex w-full items-center gap-3 px-4 py-2 text-left text-[13px] ${
                 index === cursor
-                  ? 'bg-[#2d3641] text-neutral-100'
-                  : 'text-neutral-300 hover:bg-[#232b36]'
+                  ? 'bg-raised text-ink-strong'
+                  : 'text-ink hover:bg-panel-hover'
               }`}
               onMouseMove={() => setCursor(index)}
               onClick={() => choose(command)}
             >
-              <span className="w-20 shrink-0 text-[11px] uppercase tracking-wide text-[#6b7280]">
+              <span className="w-20 shrink-0 text-[11px] uppercase tracking-wide text-faint">
                 {command.group}
               </span>
               <span className="flex-1">{command.title}</span>
               {command.shortcut && (
-                <span className="shrink-0 rounded border border-[#3a4552] px-1.5 py-0.5 text-[11px] text-[#9198A1]">
+                <span className="shrink-0 rounded border border-line-strong px-1.5 py-0.5 text-[11px] text-muted">
                   {label(command.shortcut)}
                 </span>
               )}

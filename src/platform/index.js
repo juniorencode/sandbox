@@ -171,6 +171,29 @@ export const appInfo = async () => {
 export const onMenuCommand = callback =>
   bridge?.app.onCommand(callback) ?? (() => {});
 
+export const clipboard = {
+  write: async text => {
+    if (bridge) return attempt(() => bridge.clipboard.write(text));
+    // A browser tab can use the async API, where the page is focused and the
+    // permission is granted by the gesture that triggered it.
+    try {
+      await navigator.clipboard.writeText(text);
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: String(error?.message || error) };
+    }
+  },
+
+  read: async () => {
+    if (bridge) return attempt(() => bridge.clipboard.read());
+    try {
+      return { ok: true, text: await navigator.clipboard.readText() };
+    } catch (error) {
+      return { ok: false, error: String(error?.message || error) };
+    }
+  }
+};
+
 export const node = {
   available: Boolean(bridge?.node),
   start: () => attempt(() => bridge?.node.start(), { ok: false }),

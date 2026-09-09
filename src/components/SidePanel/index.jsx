@@ -29,7 +29,7 @@ const firstLines = (code, count = 3) =>
 const History = ({ entries, onRestore, onOpenAsTab, onRemove, onClear }) => {
   if (!entries.length) {
     return (
-      <p className="p-4 text-[13px] text-[#9198A1]">
+      <p className="p-4 text-[13px] text-muted">
         Runs are recorded here as you work. Explicit runs are always kept;
         automatic ones only when the code has changed.
       </p>
@@ -38,9 +38,9 @@ const History = ({ entries, onRestore, onOpenAsTab, onRemove, onClear }) => {
 
   return (
     <div>
-      <div className="flex items-center justify-between px-3 py-2 text-[11px] uppercase tracking-wide text-[#6b7280]">
+      <div className="flex items-center justify-between px-3 py-2 text-[11px] uppercase tracking-wide text-faint">
         <span>{`${entries.length} snapshots`}</span>
-        <button className="hover:text-neutral-300" onClick={onClear}>
+        <button className="hover:text-ink" onClick={onClear}>
           Clear all
         </button>
       </div>
@@ -48,20 +48,20 @@ const History = ({ entries, onRestore, onOpenAsTab, onRemove, onClear }) => {
       {entries.map(entry => (
         <div
           key={entry.id}
-          className="group border-b border-[#252d38] px-3 py-2 text-[13px]"
+          className="group border-b border-line-soft px-3 py-2 text-[13px]"
         >
           <div className="flex items-center gap-2">
-            <span className="truncate text-neutral-200">{entry.name}</span>
-            <span className="shrink-0 text-[11px] text-[#6b7280]">
+            <span className="truncate text-ink">{entry.name}</span>
+            <span className="shrink-0 text-[11px] text-faint">
               {timeAgo(entry.at)}
             </span>
-            <span className="ml-auto shrink-0 text-[11px] text-[#6b7280]">
+            <span className="ml-auto shrink-0 text-[11px] text-faint">
               {entry.summary?.errored
                 ? 'failed'
                 : `${entry.summary?.entries ?? 0} out`}
             </span>
             <button
-              className="shrink-0 text-[#6b7280] opacity-0 transition-opacity group-hover:opacity-100 hover:text-[#ff7b72]"
+              className="shrink-0 text-faint opacity-0 transition-opacity group-hover:opacity-100 hover:text-danger"
               onClick={() => onRemove(entry.id)}
               aria-label="Remove snapshot"
             >
@@ -69,20 +69,20 @@ const History = ({ entries, onRestore, onOpenAsTab, onRemove, onClear }) => {
             </button>
           </div>
 
-          <pre className="mt-1 max-h-16 overflow-hidden whitespace-pre-wrap break-words text-[12px] text-[#9198A1]">
+          <pre className="mt-1 max-h-16 overflow-hidden whitespace-pre-wrap break-words text-[12px] text-muted">
             {firstLines(entry.code)}
           </pre>
 
           <div className="mt-1 flex gap-2 text-[12px]">
             <button
-              className="rounded bg-[#2d3641] px-2 py-0.5 hover:bg-[#3a4552]"
+              className="rounded bg-raised px-2 py-0.5 hover:bg-raised-hover"
               onClick={() => onRestore(entry)}
               title="Replace the current tab's code with this snapshot"
             >
               Restore
             </button>
             <button
-              className="rounded px-2 py-0.5 text-[#9198A1] hover:bg-[#2d3641] hover:text-neutral-200"
+              className="rounded px-2 py-0.5 text-muted hover:bg-raised hover:text-ink"
               onClick={() => onOpenAsTab(entry)}
             >
               Open in new tab
@@ -134,14 +134,14 @@ const Search = ({ tabs, onReveal }) => {
       <div className="p-3">
         <input
           ref={inputRef}
-          className="w-full rounded border border-[#3a4552] bg-[#14181f] px-2 py-1.5 text-[13px] text-neutral-200 outline-none focus:border-[#58a6ff]"
+          className="w-full rounded border border-line-strong bg-chrome px-2 py-1.5 text-[13px] text-ink outline-none focus:border-focus"
           placeholder="Find in all tabs…"
           value={query}
           onChange={event => setQuery(event.target.value)}
           aria-label="Search all tabs"
         />
         {!!query.trim() && (
-          <p className="mt-1.5 text-[11px] text-[#6b7280]">
+          <p className="mt-1.5 text-[11px] text-faint">
             {total
               ? `${total} matches in ${results.length} tabs`
               : 'No matches'}
@@ -150,20 +150,20 @@ const Search = ({ tabs, onReveal }) => {
       </div>
 
       {results.map(result => (
-        <div key={result.tab.id} className="border-b border-[#252d38]">
-          <div className="px-3 py-1 text-[12px] text-neutral-300">
+        <div key={result.tab.id} className="border-b border-line-soft">
+          <div className="px-3 py-1 text-[12px] text-ink">
             {result.tab.name}
           </div>
           {result.hits.map(hit => (
             <button
               key={`${result.tab.id}-${hit.line}`}
-              className="flex w-full gap-2 px-3 py-1 text-left text-[12px] hover:bg-[#232b36]"
+              className="flex w-full gap-2 px-3 py-1 text-left text-[12px] hover:bg-panel-hover"
               onClick={() => onReveal(result.tab.id, hit.line)}
             >
-              <span className="w-8 shrink-0 text-right text-[#6b7280]">
+              <span className="w-8 shrink-0 text-right text-faint">
                 {hit.line}
               </span>
-              <span className="truncate font-mono text-[#9198A1]">
+              <span className="truncate font-mono text-muted">
                 {hit.text}
               </span>
             </button>
@@ -195,8 +195,8 @@ export const SidePanel = ({
   if (!open) return null;
 
   return (
-    <aside className="flex w-[320px] shrink-0 flex-col border-l border-[#2d3641] bg-[#1b212b]">
-      <div className="flex items-center gap-1 border-b border-[#2d3641] px-2 py-1.5">
+    <aside className="flex w-[320px] shrink-0 flex-col border-l border-line bg-panel">
+      <div className="flex items-center gap-1 border-b border-line px-2 py-1.5">
         {TABS.map(entry => {
           const Icon = entry.icon;
           return (
@@ -204,8 +204,8 @@ export const SidePanel = ({
               key={entry.id}
               className={`flex items-center gap-1 rounded px-2 py-1 text-[12px] ${
                 view === entry.id
-                  ? 'bg-[#2d3641] text-neutral-100'
-                  : 'text-[#9198A1] hover:text-neutral-200'
+                  ? 'bg-raised text-ink-strong'
+                  : 'text-muted hover:text-ink'
               }`}
               onClick={() => onView(entry.id)}
             >
@@ -215,7 +215,7 @@ export const SidePanel = ({
           );
         })}
         <button
-          className="ml-auto text-[#9198A1] hover:text-neutral-200"
+          className="ml-auto text-muted hover:text-ink"
           onClick={onClose}
           aria-label="Close panel"
         >

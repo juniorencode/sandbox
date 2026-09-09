@@ -13,11 +13,11 @@ import { ValueNode } from '../ValueInspector';
 
 const LEVEL_STYLE = {
   log: '',
-  info: 'text-[#79c0ff]',
-  debug: 'text-[#9198A1]',
-  warn: 'bg-[#3a2d15] text-[#e3b341] -mx-4 px-4 border-l-2 border-[#e3b341]',
-  error: 'bg-[#3a1d1d] text-[#ff7b72] -mx-4 px-4 border-l-2 border-[#ff7b72]',
-  trace: 'text-[#9198A1]'
+  info: 'text-info',
+  debug: 'text-muted',
+  warn: 'bg-warn-soft text-warn -mx-4 px-4 border-l-2 border-warn',
+  error: 'bg-danger-soft text-danger -mx-4 px-4 border-l-2 border-danger',
+  trace: 'text-muted'
 };
 
 const PHASE_LABEL = {
@@ -30,19 +30,19 @@ const Table = ({ entry }) => (
     <table className="border-collapse text-[13px]">
       <thead>
         <tr>
-          <th className="border border-[#2d3641] px-2 py-0.5 text-left text-[#9198A1] font-normal">
+          <th className="border border-line px-2 py-0.5 text-left text-muted font-normal">
             (index)
           </th>
           {entry.columns.map(column => (
             <th
               key={column}
-              className="border border-[#2d3641] px-2 py-0.5 text-left text-[#9198A1] font-normal"
+              className="border border-line px-2 py-0.5 text-left text-muted font-normal"
             >
               {column}
             </th>
           ))}
           {entry.hasValueColumn && (
-            <th className="border border-[#2d3641] px-2 py-0.5 text-left text-[#9198A1] font-normal">
+            <th className="border border-line px-2 py-0.5 text-left text-muted font-normal">
               Value
             </th>
           )}
@@ -51,16 +51,16 @@ const Table = ({ entry }) => (
       <tbody>
         {entry.rows.map(row => (
           <tr key={row.key}>
-            <td className="border border-[#2d3641] px-2 py-0.5 text-[#9198A1]">
+            <td className="border border-line px-2 py-0.5 text-muted">
               {row.key}
             </td>
             {entry.columns.map(column => (
-              <td key={column} className="border border-[#2d3641] px-2 py-0.5">
+              <td key={column} className="border border-line px-2 py-0.5">
                 {row.cells[column] ? <ValueNode node={row.cells[column]} /> : ''}
               </td>
             ))}
             {entry.hasValueColumn && (
-              <td className="border border-[#2d3641] px-2 py-0.5">
+              <td className="border border-line px-2 py-0.5">
                 {row.value ? <ValueNode node={row.value} /> : ''}
               </td>
             )}
@@ -81,15 +81,15 @@ Table.propTypes = { entry: PropTypes.object.isRequired };
  * 2 of a 40-line file was reported at the bottom of the pane.
  */
 const Failure = ({ entry, onReveal }) => (
-  <div className="my-0.5 -mx-4 px-4 py-1 bg-[#3a1d1d] border-l-2 border-[#ff7b72]">
-    <div className="text-[#ff7b72]">
+  <div className="my-0.5 -mx-4 px-4 py-1 bg-danger-soft border-l-2 border-danger">
+    <div className="text-danger">
       {PHASE_LABEL[entry.phase] && (
-        <span className="text-[#9198A1]">{`${PHASE_LABEL[entry.phase]}: `}</span>
+        <span className="text-muted">{`${PHASE_LABEL[entry.phase]}: `}</span>
       )}
       {`${entry.name}: ${entry.message}`}
     </div>
     {!!entry.frames?.length && (
-      <div className="mt-0.5 text-[12px] text-[#9198A1]">
+      <div className="mt-0.5 text-[12px] text-muted">
         {entry.frames.map((frame, index) => (
           <button
             key={index}
@@ -132,7 +132,7 @@ export const OutputEntry = ({ entry, collapsed, onToggleGroup, onExpand, onRevea
   if (entry.t === GROUP) {
     return (
       <button
-        className="flex items-center gap-1 font-semibold text-neutral-200 hover:text-white"
+        className="flex items-center gap-1 font-semibold text-ink hover:text-white"
         style={indent}
         onClick={() => onToggleGroup(entry.entryId)}
         aria-expanded={!collapsed}
@@ -161,7 +161,7 @@ export const OutputEntry = ({ entry, collapsed, onToggleGroup, onExpand, onRevea
           chronological. The marker makes that explicit. */}
       {entry.late && (
         <span
-          className="mt-0.5 text-[#9198A1] shrink-0"
+          className="mt-0.5 text-muted shrink-0"
           title="Logged asynchronously, after the run settled"
         >
           <VscHistory size={12} />
@@ -177,7 +177,7 @@ export const OutputEntry = ({ entry, collapsed, onToggleGroup, onExpand, onRevea
         />
       ))}
       {entry.assertion && !entry.values.length && (
-        <span className="text-[#ff7b72]">Assertion failed</span>
+        <span className="text-danger">Assertion failed</span>
       )}
     </div>
   );

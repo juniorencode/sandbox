@@ -15,8 +15,8 @@ import { modules } from '../../platform';
 const Row = ({ label, hint, children }) => (
   <label className="flex items-start justify-between gap-6 py-2.5">
     <span className="flex-1">
-      <span className="block text-neutral-200">{label}</span>
-      {hint && <span className="block text-[12px] text-[#9198A1]">{hint}</span>}
+      <span className="block text-ink">{label}</span>
+      {hint && <span className="block text-[12px] text-muted">{hint}</span>}
     </span>
     <span className="flex shrink-0 items-center gap-2">{children}</span>
   </label>
@@ -32,7 +32,7 @@ const Number_ = ({ value, min, max, step, unit, onChange }) => (
   <>
     <input
       type="number"
-      className="w-24 rounded border border-[#3a4552] bg-[#14181f] px-2 py-1 text-right text-neutral-200 outline-none focus:border-[#58a6ff]"
+      className="w-24 rounded border border-line-strong bg-chrome px-2 py-1 text-right text-ink outline-none focus:border-focus"
       value={value}
       min={min}
       max={max}
@@ -42,7 +42,7 @@ const Number_ = ({ value, min, max, step, unit, onChange }) => (
         if (Number.isFinite(next)) onChange(Math.min(Math.max(next, min), max));
       }}
     />
-    {unit && <span className="w-8 text-[12px] text-[#9198A1]">{unit}</span>}
+    {unit && <span className="w-8 text-[12px] text-muted">{unit}</span>}
   </>
 );
 
@@ -60,7 +60,7 @@ const Toggle = ({ checked, onChange }) => (
     role="switch"
     aria-checked={checked}
     className={`h-5 w-9 rounded-full transition-colors ${
-      checked ? 'bg-[#238636]' : 'bg-[#3a4552]'
+      checked ? 'bg-accent' : 'bg-raised-hover'
     }`}
     onClick={() => onChange(!checked)}
   >
@@ -115,15 +115,15 @@ export const SettingsDialog = ({ open, settings, onChange, onClose, appInfo }) =
       role="presentation"
     >
       <div
-        className="flex max-h-full w-[min(620px,95vw)] flex-col overflow-hidden rounded-lg border border-[#2d3641] bg-[#1b212b] shadow-2xl"
+        className="flex max-h-full w-[min(620px,95vw)] flex-col overflow-hidden rounded-lg border border-line bg-panel shadow-2xl"
         onMouseDown={event => event.stopPropagation()}
         role="dialog"
         aria-label="Settings"
       >
-        <div className="flex items-center justify-between border-b border-[#2d3641] px-4 py-3">
-          <h2 className="text-[15px] font-semibold text-neutral-100">Settings</h2>
+        <div className="flex items-center justify-between border-b border-line px-4 py-3">
+          <h2 className="text-[15px] font-semibold text-ink-strong">Settings</h2>
           <button
-            className="text-[#9198A1] hover:text-neutral-200"
+            className="text-muted hover:text-ink"
             onClick={onClose}
             aria-label="Close settings"
           >
@@ -131,9 +131,9 @@ export const SettingsDialog = ({ open, settings, onChange, onClose, appInfo }) =
           </button>
         </div>
 
-        <div className="divide-y divide-[#252d38] overflow-y-auto px-4 text-[13px]">
+        <div className="divide-y divide-line-soft overflow-y-auto px-4 text-[13px]">
           <div className="py-1">
-            <h3 className="pt-3 text-[11px] uppercase tracking-wide text-[#6b7280]">
+            <h3 className="pt-3 text-[11px] uppercase tracking-wide text-faint">
               Running
             </h3>
             <Row
@@ -174,7 +174,30 @@ export const SettingsDialog = ({ open, settings, onChange, onClose, appInfo }) =
           </div>
 
           <div className="py-1">
-            <h3 className="pt-3 text-[11px] uppercase tracking-wide text-[#6b7280]">
+            <h3 className="pt-3 text-[11px] uppercase tracking-wide text-faint">
+              Appearance
+            </h3>
+            <Row
+              label="Theme"
+              hint="System follows the operating system's setting."
+            >
+              <select
+                className="rounded border border-line-strong bg-chrome px-2 py-1 text-ink outline-none focus:border-focus"
+                value={settings.theme}
+                onChange={event => onChange({ theme: event.target.value })}
+                aria-label="Theme"
+              >
+                {['system', 'dark', 'light'].map(option => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </Row>
+          </div>
+
+          <div className="py-1">
+            <h3 className="pt-3 text-[11px] uppercase tracking-wide text-faint">
               Editor
             </h3>
             <Row label="Font size">
@@ -216,7 +239,7 @@ export const SettingsDialog = ({ open, settings, onChange, onClose, appInfo }) =
           </div>
 
           <div className="py-1">
-            <h3 className="pt-3 text-[11px] uppercase tracking-wide text-[#6b7280]">
+            <h3 className="pt-3 text-[11px] uppercase tracking-wide text-faint">
               Output
             </h3>
             <Row
@@ -243,7 +266,7 @@ export const SettingsDialog = ({ open, settings, onChange, onClose, appInfo }) =
           </div>
 
           <div className="py-1">
-            <h3 className="pt-3 text-[11px] uppercase tracking-wide text-[#6b7280]">
+            <h3 className="pt-3 text-[11px] uppercase tracking-wide text-faint">
               Packages
             </h3>
             <Row
@@ -259,13 +282,13 @@ export const SettingsDialog = ({ open, settings, onChange, onClose, appInfo }) =
               label="Cache"
               hint={cache?.path ?? 'Downloaded packages are stored on disk.'}
             >
-              <span className="text-[#9198A1]">
+              <span className="text-muted">
                 {cache
                   ? `${cache.count} files, ${formatBytes(cache.bytes)}`
                   : '…'}
               </span>
               <button
-                className="flex items-center gap-1 rounded bg-[#2d3641] px-2 py-1 hover:bg-[#3a4552]"
+                className="flex items-center gap-1 rounded bg-raised px-2 py-1 hover:bg-raised-hover"
                 onClick={clearCache}
               >
                 <VscTrash size={12} />
@@ -275,7 +298,7 @@ export const SettingsDialog = ({ open, settings, onChange, onClose, appInfo }) =
           </div>
         </div>
 
-        <div className="flex items-center justify-between border-t border-[#2d3641] px-4 py-2 text-[11px] text-[#6b7280]">
+        <div className="flex items-center justify-between border-t border-line px-4 py-2 text-[11px] text-faint">
           <span>
             {appInfo
               ? `Sandbox ${appInfo.version} · Electron ${appInfo.electron ?? '—'} · Chromium ${appInfo.chrome ?? '—'}`

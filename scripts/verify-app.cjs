@@ -15,11 +15,12 @@
  */
 const path = require('path');
 const fs = require('fs');
-const { app, BrowserWindow, session } = require('electron');
+const { app, BrowserWindow, clipboard, session } = require('electron');
 const store = require('../electron/store.cjs');
 const ipc = require('../electron/ipc.cjs');
 const security = require('../electron/security.cjs');
 const modules = require('../electron/modules.cjs');
+const menu = require('../electron/menu.cjs');
 const { createNodeRuntime } = require('../electron/nodeMode.cjs');
 
 const ROOT = path.join(__dirname, '..');
@@ -72,6 +73,16 @@ const expect = (condition, message) => {
 /** Status bar text is multi-line; collapse it for a readable log line. */
 const oneLine = text => String(text ?? '').split(/\r?\n/).join(' | ');
 
+/**
+ * Monaco renders some spaces as non-breaking spaces, so text read out of its
+ * DOM does not compare equal to the source it was typed from. Assertions on
+ * editor text go through this.
+ */
+const normalize = text =>
+  String(text ?? '')
+    .replace(/ /g, ' ')
+    .replace(/[ \t]+/g, ' ');
+
 app.commandLine.appendSwitch('disable-gpu');
 
 // Privileged schemes must be declared before the app is ready, exactly as
@@ -111,6 +122,7 @@ app.whenReady().then(async () => {
   });
 
   ipc.register(() => currentWindow, { moduleServer, nodeRuntime });
+  menu.install(() => currentWindow);
 
   const indexFile = path.join(ROOT, 'build', 'index.html');
   if (!fs.existsSync(indexFile)) {
@@ -416,6 +428,249 @@ app.whenReady().then(async () => {
     nodeRun.output.includes('string') && nodeRun.output.includes('number'),
     `node mode did not run: ${JSON.stringify(nodeRun.output)}`
   );
+
+
+  /**
+   * A large run, which used to freeze the app: every entry was a live DOM
+   * node. The pane renders only what is near the viewport now, so the node
+   * count has to stay bounded no matter how much is logged.
+   */
+  await win.webContents.executeJavaScript('localStorage.clear(); true');
+  for (const target of [workspaceFile, workspaceBackup]) {
+    try {
+      if (fs.existsSync(target)) fs.unlinkSync(target);
+    } catch {
+      /* nothing to clean */
+    }
+  }
+  await win.webContents.reload();
+  await sleep(2500);
+
+  win.webContents.focus();
+  win.webContents.sendInputEvent({ type: 'mouseDown', x: 300, y: 200, button: 'left', clickCount: 1 });
+  win.webContents.sendInputEvent({ type: 'mouseUp', x: 300, y: 200, button: 'left', clickCount: 1 });
+  await sleep(300);
+
+  const started = Date.now();
+  await typeText(win, 'for (let i = 0; i < 5000; i++) console.log("row", i)');
+  await sleep(4000);
+
+  const bulk = await win.webContents.executeJavaScript(`
+    (() => {
+      const panes = document.querySelectorAll(${JSON.stringify(PANES)});
+      const pane = panes[2];
+      return {
+        entries: (document.querySelector('.h-6') || {}).innerText || '',
+        blocks: pane ? pane.querySelectorAll('.absolute.inset-x-0.px-4').length : -1,
+        nodes: pane ? pane.querySelectorAll('*').length : -1
+      };
+    })()
+  `);
+  const elapsed = Date.now() - started;
+
+  console.log(
+    'bulk   :',
+    oneLine(bulk.entries).split(' | ').slice(0, 3).join(' | '),
+    '| blocks in dom =',
+    bulk.blocks,
+    '| total nodes =',
+    bulk.nodes,
+    '|',
+    elapsed + 'ms'
+  );
+
+  expect(
+    bulk.entries.includes('5000 entries'),
+    `expected 5000 entries, status was: ${JSON.stringify(oneLine(bulk.entries))}`
+  );
+  expect(
+    bulk.blocks > 0 && bulk.blocks < 200,
+    `the output pane is not virtualised: ${bulk.blocks} blocks rendered for 5000 entries`
+  );
+  // The window still has to answer, which is what the freeze took away.
+  const responsive = await win.webContents.executeJavaScript('1 + 1');
+  expect(responsive === 2, 'the renderer stopped responding under load');
+
+
+  /**
+   * Both themes. The app had a single hardcoded palette, so this checks that
+   * the token layer actually reaches the page: the root attribute, the painted
+   * background, and Monaco's own theme all have to change together.
+   */
+  const readAppearance = () =>
+    win.webContents.executeJavaScript(`
+      (() => {
+        const root = document.documentElement;
+        const monaco = document.querySelector('.monaco-editor');
+        return {
+          attribute: root.dataset.theme || '(unset)',
+          scheme: getComputedStyle(root).colorScheme,
+          body: getComputedStyle(document.body).backgroundColor,
+          token: getComputedStyle(root).getPropertyValue('--c-app').trim(),
+          editor: monaco ? getComputedStyle(monaco).backgroundColor : null
+        };
+      })()
+    `);
+
+  const setTheme = value =>
+    win.webContents.executeJavaScript(`
+      (() => {
+        const open = document.querySelector('button[aria-label="Settings"]');
+        if (!open) return 'no-settings-button';
+        open.click();
+        return new Promise(resolve => setTimeout(() => {
+          const select = document.querySelector('select[aria-label="Theme"]');
+          if (!select) return resolve('no-theme-select');
+          select.value = ${JSON.stringify('PLACEHOLDER')};
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+          document.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+          );
+          resolve('ok');
+        }, 250));
+      })()
+    `.replace('PLACEHOLDER', value));
+
+  const asDark = await (async () => {
+    const outcome = await setTheme('dark');
+    if (outcome !== 'ok') problems.push('could not reach the theme setting: ' + outcome);
+    await sleep(700);
+    return readAppearance();
+  })();
+  console.log('theme  : dark  ->', JSON.stringify(asDark));
+
+  const asLight = await (async () => {
+    await setTheme('light');
+    await sleep(700);
+    return readAppearance();
+  })();
+  console.log('theme  : light ->', JSON.stringify(asLight));
+
+  expect(asDark.attribute === 'dark', 'the dark theme did not reach the root element');
+  expect(asLight.attribute === 'light', 'the light theme did not reach the root element');
+  expect(
+    asDark.token !== asLight.token,
+    `the colour tokens did not change between themes: ${asDark.token} vs ${asLight.token}`
+  );
+  expect(
+    asDark.body !== asLight.body,
+    `the painted background did not change: ${asDark.body} vs ${asLight.body}`
+  );
+  expect(
+    asDark.editor !== asLight.editor,
+    `Monaco kept the same theme: ${asDark.editor} vs ${asLight.editor}`
+  );
+  expect(
+    asLight.scheme === 'light',
+    `color-scheme was not applied: ${asLight.scheme}`
+  );
+
+
+  /**
+   * Sharing. There was no way to get a snippet out of the app, and no way
+   * back in. A link would be the obvious shape but nothing hosts this editor,
+   * so what has to work is a token that round-trips through the clipboard.
+   */
+  await win.webContents.executeJavaScript('localStorage.clear(); true');
+  for (const target of [workspaceFile, workspaceBackup]) {
+    try {
+      if (fs.existsSync(target)) fs.unlinkSync(target);
+    } catch {
+      /* nothing to clean */
+    }
+  }
+  await win.webContents.reload();
+  await sleep(2500);
+
+  win.webContents.focus();
+  win.webContents.sendInputEvent({ type: 'mouseDown', x: 300, y: 200, button: 'left', clickCount: 1 });
+  win.webContents.sendInputEvent({ type: 'mouseUp', x: 300, y: 200, button: 'left', clickCount: 1 });
+  await sleep(300);
+
+  const shared = 'const shared = 41 + 1';
+  await typeText(win, shared);
+  await sleep(900);
+
+  clipboard.writeText('');
+
+  /**
+   * Runs a registered command through the palette. The keyboard path for these
+   * is a menu accelerator in the packaged app, so going through the registry
+   * is both deterministic here and the same code path.
+   */
+  const runCommand = async title => {
+    const script =
+      '(() => {' +
+      "  const open = [...document.querySelectorAll('button')].find(" +
+      "    node => node.textContent.trim() === 'Commands');" +
+      "  if (!open) return 'no-commands-button';" +
+      '  open.click();' +
+      '  return new Promise(resolve => setTimeout(() => {' +
+      "    const entry = [...document.querySelectorAll('[role=\"option\"]')]" +
+      '      .find(node => node.textContent.includes(' +
+      JSON.stringify(title) +
+      '));' +
+      "    if (!entry) return resolve('no-entry');" +
+      '    entry.click();' +
+      "    resolve('ran');" +
+      '  }, 300));' +
+      '})()';
+    return win.webContents.executeJavaScript(script);
+  };
+
+  expect(
+    (await runCommand('Copy shareable snippet')) === 'ran',
+    'the copy command is not in the palette'
+  );
+  await sleep(1500);
+  const token = clipboard.readText();
+  console.log(
+    'share  : token =',
+    token ? token.slice(0, 24) + '… (' + token.length + ' chars)' : '(empty)'
+  );
+  expect(
+    /^sandbox:\d+:[rz]:/.test(token),
+    'no shareable token reached the clipboard: ' + JSON.stringify(token.slice(0, 60))
+  );
+
+  expect(
+    (await runCommand('Open shared snippet')) === 'ran',
+    'the paste command is not in the palette'
+  );
+  await sleep(1800);
+
+  const reopened = await win.webContents.executeJavaScript(`
+    (() => {
+      const tabs = [
+        ...document.querySelectorAll('.drag-bar .tab button[aria-label^="Close "]')
+      ].map(node => node.getAttribute('aria-label').replace('Close ', ''));
+      const panes = document.querySelectorAll(${JSON.stringify(PANES)});
+      return { tabs, editor: panes[0] ? panes[0].innerText : '' };
+    })()
+  `);
+  console.log('share  : tabs after paste =', JSON.stringify(reopened.tabs));
+
+  expect(
+    reopened.tabs.length === 2,
+    `pasting a snippet did not open a tab: ${JSON.stringify(reopened.tabs)}`
+  );
+  expect(
+    normalize(reopened.editor).includes('41 + 1'),
+    `the reopened tab does not hold the shared code: ${JSON.stringify(reopened.editor)}`
+  );
+
+  if (SHOT) {
+    for (const [name, value] of [['light', 'light'], ['dark', 'dark']]) {
+      await setTheme(value);
+      await sleep(800);
+      const themed = await win.webContents.capturePage();
+      fs.writeFileSync(
+        path.join(ROOT, 'build', `verify-app-${name}.png`),
+        themed.toPNG()
+      );
+      console.log('screenshot:', `build/verify-app-${name}.png`);
+    }
+  }
 
   if (SHOT) {
     const image = await win.webContents.capturePage();
