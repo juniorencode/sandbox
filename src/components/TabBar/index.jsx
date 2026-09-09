@@ -21,7 +21,8 @@ export const TabBar = ({
   onClose,
   onCreate,
   onRename,
-  onMove
+  onMove,
+  newTabHint
 }) => {
   const [renamingId, setRenamingId] = useState(null);
   const [draft, setDraft] = useState('');
@@ -150,7 +151,7 @@ export const TabBar = ({
         <div className="ml-2 flex items-center justify-center">
           <button
             className="tab rounded-full p-0.5 transition-colors hover:bg-[#2d3641] hover:text-neutral-300"
-            title="New tab"
+            title={newTabHint ? `New tab (${newTabHint})` : 'New tab'}
             aria-label="New tab"
             onClick={() => onCreate()}
           >
@@ -176,5 +177,6 @@ TabBar.propTypes = {
   onClose: PropTypes.func.isRequired,
   onCreate: PropTypes.func.isRequired,
   onRename: PropTypes.func.isRequired,
-  onMove: PropTypes.func.isRequired
+  onMove: PropTypes.func.isRequired,
+  newTabHint: PropTypes.string
 };
