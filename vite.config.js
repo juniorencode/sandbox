@@ -7,5 +7,18 @@ export default defineConfig({
   build: {
     outDir: 'build'
   },
-  plugins: [react()]
+  plugins: [react()],
+  test: {
+    // Runtime modules are plain JavaScript and run fastest without a DOM.
+    // Component tests opt into jsdom with a `@vitest-environment` docblock.
+    environment: 'node',
+    globals: true,
+    setupFiles: ['./src/test/setup.js'],
+    include: ['src/**/*.test.{js,jsx}'],
+    coverage: {
+      provider: 'v8',
+      include: ['src/runtime/**', 'src/utilities/**', 'src/hooks/**'],
+      reporter: ['text', 'html']
+    }
+  }
 });

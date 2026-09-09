@@ -38,4 +38,24 @@ export default [
       ],
     },
   },
+  {
+    // Tests and build-time scripts run under Node, not in the renderer.
+    files: [
+      '**/*.test.{js,jsx}',
+      '**/__tests__/**',
+      'src/test/**',
+      'scripts/**',
+      '*.config.js',
+    ],
+    languageOptions: {
+      globals: { ...globals.node, ...globals.browser },
+    },
+  },
+  {
+    files: ['**/*.cjs'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: globals.node,
+    },
+  },
 ]
