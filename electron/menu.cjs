@@ -48,6 +48,18 @@ const build = getWindow => {
           click: command('file.saveAs')
         },
         { type: 'separator' },
+        {
+          label: 'Copy Shareable Snippet',
+          accelerator: 'CmdOrCtrl+Shift+C',
+          click: command('share.copy')
+        },
+        {
+          label: 'Open Shared Snippet',
+          accelerator: 'CmdOrCtrl+Shift+V',
+          click: command('share.paste')
+        },
+        { label: 'Copy as Markdown', click: command('share.markdown') },
+        { type: 'separator' },
         { label: 'Export Workspace…', click: command('workspace.export') },
         { label: 'Import Workspace…', click: command('workspace.import') },
         { label: 'Show Workspace Folder', click: command('workspace.reveal') },

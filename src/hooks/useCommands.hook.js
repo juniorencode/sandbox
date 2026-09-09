@@ -12,6 +12,7 @@ export const useCommands = ({
   runner,
   workspace,
   fileActions,
+  shareActions,
   editorActions,
   panel,
   palette,
@@ -114,6 +115,26 @@ export const useCommands = ({
         run: fileActions.saveAs
       },
       {
+        id: 'share.copy',
+        title: 'Copy shareable snippet',
+        group: 'Share',
+        shortcut: 'Mod+Shift+C',
+        run: shareActions.copyToken
+      },
+      {
+        id: 'share.paste',
+        title: 'Open shared snippet from clipboard',
+        group: 'Share',
+        shortcut: 'Mod+Shift+V',
+        run: shareActions.pasteToken
+      },
+      {
+        id: 'share.markdown',
+        title: 'Copy as markdown code block',
+        group: 'Share',
+        run: shareActions.copyMarkdown
+      },
+      {
         id: 'workspace.export',
         title: 'Export workspace…',
         group: 'Workspace',
@@ -182,6 +203,7 @@ export const useCommands = ({
     runner,
     workspace,
     fileActions,
+    shareActions,
     editorActions,
     panel,
     palette,

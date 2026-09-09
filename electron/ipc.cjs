@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { app, dialog, ipcMain, shell } = require('electron');
+const { app, clipboard, dialog, ipcMain, shell } = require('electron');
 const store = require('./store.cjs');
 
 /**
@@ -174,6 +174,30 @@ const register = (
     chrome: process.versions.chrome,
     userData: app.getPath('userData')
   }));
+
+  // --- clipboard ------------------------------------------------------------
+
+  /**
+   * Routed through the main process rather than navigator.clipboard, which
+   * needs a focused document and a permission the page cannot be granted
+   * reliably under file://.
+   */
+  ipcMain.handle('clipboard:write', (_event, text) => {
+    try {
+      clipboard.writeText(String(text ?? ''));
+      return { ok: true };
+    } catch (error) {
+      return failed(error);
+    }
+  });
+
+  ipcMain.handle('clipboard:read', () => {
+    try {
+      return { ok: true, text: clipboard.readText() };
+    } catch (error) {
+      return failed(error);
+    }
+  });
 
   // --- node mode ------------------------------------------------------------
 

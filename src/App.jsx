@@ -15,6 +15,7 @@ import { useFiles } from './hooks/useFiles.hook';
 import { useHistory } from './hooks/useHistory.hook';
 import { useMenuBridge } from './hooks/useMenuBridge.hook';
 import { useRunner, STATUS } from './hooks/useRunner.hook';
+import { useShare } from './hooks/useShare.hook';
 import { useShortcuts } from './hooks/useShortcuts.hook';
 import { useTheme } from './hooks/useTheme.hook';
 import { useUpdates } from './hooks/useUpdates.hook';
@@ -89,6 +90,11 @@ const App = () => {
   const fileActions = useFiles(workspace);
   const updateState = useUpdates();
   const historyLog = useHistory({ history, setHistory });
+  const shareActions = useShare({
+    activeTab,
+    addTab: workspace.addTab,
+    report: fileActions.report
+  });
 
   useEffect(() => {
     readAppInfo().then(info => info?.ok && setAppInfo(info));
@@ -196,6 +202,7 @@ const App = () => {
     runner,
     workspace,
     fileActions,
+    shareActions,
     editorActions,
     panel,
     palette,
