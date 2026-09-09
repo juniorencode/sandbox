@@ -1,34 +1,33 @@
 name: CI
 
+# Pushes only run on main. Everything else arrives as a pull request, and a
+# PR from develop used to match both triggers at once, so every job ran twice
+# for the same commit: three jobs became six checks per change.
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
     branches: [main, develop]
+
+# A second push to the same branch makes the first run pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        # Both supported majors. This job used to pin Node 20, which the
-        # toolchain no longer runs on: jsdom loads undici, and undici 8 needs
-        # worker_threads.markAsUncloneable, added after Node 20. The three
-        # jsdom test files could not start at all, and the failure surfaced as
-        # "markAsUncloneable is not a function" rather than as a version
-        # mismatch. Testing both majors is what keeps that from recurring
-        # silently on one of them.
-        node-version: [22, 24]
-
-    name: check (node ${{ matrix.node-version }})
 
     steps:
       - uses: actions/checkout@v4
 
+      # One version, read from .nvmrc, so local development and CI cannot
+      # disagree. This was a matrix over Node 22 and 24, which doubled the
+      # jobs to verify a version nothing is built on; the floor that matters
+      # is declared in `engines` and enforced at install time.
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version-file: .nvmrc
           cache: npm
 
       # Installs from the lockfile only, which is what would have caught the
@@ -40,20 +39,6 @@ jobs:
       - run: npm run lint
 
       - run: npm test
-
-  build:
-    runs-on: ubuntu-latest
-    needs: check
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-
-      - run: npm ci
 
       - run: npm run build-vite
 

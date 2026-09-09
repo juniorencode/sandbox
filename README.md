@@ -89,10 +89,11 @@ On macOS, `Cmd` replaces `Ctrl`.
 
 ## Development
 
-Needs Node 22.22.2 or newer, or 24.15.0 or newer. The toolchain sets the floor:
-jsdom loads undici, which needs a `worker_threads` API added after Node 20.
-`engines` is enforced at install time, so an unsupported version is reported
-by `npm install` rather than surfacing later as a confusing test failure.
+Needs Node 24.15.0 or newer, the version in `.nvmrc` and the one CI runs. The
+toolchain sets the floor: jsdom loads undici, which needs a `worker_threads`
+API added after Node 20. `engines` is enforced at install time, so an
+unsupported version is reported by `npm install` rather than surfacing later
+as a confusing test failure.
 
 ```
 npm install
@@ -108,6 +109,15 @@ npm run verify:app   # boot the real build in Electron and drive it
 renderer attempts a request, which is what demonstrates the editor and its
 packages work offline. Add `--online` to also cover the first download of a
 package, `--show` to watch it in a visible window.
+
+To ask the Electron binary something rather than launch the app, set
+`ELECTRON_RUN_AS_NODE=1` so it behaves as plain Node. A failed launch does not
+write to stderr; it opens a modal dialog, which is a poor way to find out that
+a diagnostic was malformed:
+
+```
+ELECTRON_RUN_AS_NODE=1 npx electron -e "console.log(process.versions.node)"
+```
 
 ## How it works
 
