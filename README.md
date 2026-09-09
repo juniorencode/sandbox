@@ -1,32 +1,141 @@
 # Sandbox
 
-A hot-reloading scratchpad for JavaScript, built with **Vite**, **React** and
-**Electron**. Type code on the left, see what every line produced on the right.
+A hot-reloading scratchpad for JavaScript, built with **Electron**, **Vite**,
+**React** and **Monaco**. Type on the left, see what each line produced on the
+right.
 
 ## Installation
 
-Install the program, no additional configuration required.
+Install the program. Nothing is fetched at runtime, so it works offline from
+the first launch.
 
 ## Features
 
-- Runs JavaScript as you type, with the output aligned to the line that produced it.
-- Multi-tab workspace, persisted between sessions.
-- Syntax highlighting and IntelliSense via a locally bundled Monaco editor.
-- Fully offline: nothing is fetched at runtime.
+### Running code
 
-## Technologies
+- Runs as you type, or on demand with `Ctrl+Enter` when auto-run is off.
+- Output is anchored to the line that produced it, in line order rather than
+  arrival order, so a log from a function defined above its own call site
+  appears next to its statement and a multi-line value does not shift
+  everything below it.
+- `await` works at the top level, and output from timers and promise callbacks
+  reaches the pane after the body settles, marked as late.
+- A stop button and a configurable timeout. Synchronous code cannot be
+  interrupted, so both work by terminating the runtime and starting a fresh
+  one.
+- Errors report their line and column, underline the offending line in the
+  editor, and list clickable stack frames. Unhandled rejections and throws
+  inside timer callbacks are reported too.
 
-- **Electron**: OS integration and window shell.
-- **React**: user interface.
-- **Vite**: build tooling.
-- **Monaco**: code editor.
+### Output
+
+- Values render as collapsible trees with a one-level preview, the way a
+  devtools console does. `Map`, `Set`, `Date`, `BigInt`, `Symbol`, typed
+  arrays, class names, circular references and getters all render as
+  themselves; getters are shown but never invoked.
+- Top-level strings print unquoted.
+- The full console API: `table`, `group`, `groupCollapsed`, `time`, `timeEnd`,
+  `count`, `assert`, `dir`, `trace`, and distinct styling per level.
+
+### Languages and packages
+
+- JavaScript, JSX, TypeScript and TSX, per tab. The compiler loads on demand,
+  and positions are mapped back through its source map so locations refer to
+  what you wrote.
+- `import` from npm by name. Packages are served from a local cache through a
+  private scheme, so a package is downloaded once and then works offline, and
+  downloads can be turned off without breaking what is already cached.
+- **Node mode**, per tab: evaluates in a real Node process with real
+  `require`, the built-in modules, and packages installed under the Node mode
+  folder. It runs with the app's privileges rather than in a sandbox, so it
+  asks for confirmation the first time.
+
+### Workspace
+
+- Multi-tab, with rename, drag to reorder, close any tab, and middle-click to
+  close.
+- Stored as a file under the app's data directory, written through a temp file
+  and a rename, with the previous version kept as a `.bak` that is read
+  automatically if the current one will not parse.
+- Open and save real files, and export or import the whole workspace.
+- Execution history, and search across every tab.
+- A command palette (`Ctrl+Shift+P`) listing every command with its binding.
+
+## Keyboard
+
+| Action | Shortcut |
+| --- | --- |
+| Command palette | `Ctrl+Shift+P` |
+| Run | `Ctrl+Enter` |
+| Stop | `Ctrl+.` |
+| Clear output | `Ctrl+K` |
+| New tab / close tab | `Ctrl+N` / `Ctrl+W` |
+| Next / previous tab | `Ctrl+Tab` / `Ctrl+Shift+Tab` |
+| Open / save / save as | `Ctrl+O` / `Ctrl+S` / `Ctrl+Shift+S` |
+| Find in all tabs | `Ctrl+Shift+F` |
+| Execution history | `Ctrl+H` |
+| Format document | `Alt+Shift+F` |
+| Settings | `Ctrl+,` |
+
+On macOS, `Cmd` replaces `Ctrl`.
 
 ## Development
 
 ```
 npm install
-npm run dev        # renderer only, in a browser tab
-npm run electron   # build the renderer and launch the desktop app
-npm run build      # produce an installer via electron-builder
+npm run dev          # renderer only, in a browser tab
+npm run electron     # build and launch the desktop app
+npm run build        # produce an installer via electron-builder
 npm run lint
+npm test             # unit and integration tests
+npm run verify:app   # boot the real build in Electron and drive it
 ```
+
+`npm run verify:app` loads the build with networking disabled and fails if the
+renderer attempts a request, which is what demonstrates the editor and its
+packages work offline. Add `--online` to also cover the first download of a
+package, `--show` to watch it in a visible window.
+
+## How it works
+
+The renderer never evaluates user code itself. Code goes through:
+
+1. **Transpile** — TypeScript and JSX only, via esbuild compiled to
+   WebAssembly, keeping a source map.
+2. **Instrument** — an acorn pass rewrites console call sites to carry their
+   line and column, converts static imports into awaited dynamic imports, and
+   strips `export`. Locations are mapped back through the source map.
+3. **Evaluate** — through `AsyncFunction`, in either a Web Worker or a Node
+   utility process. Both speak the same message protocol.
+4. **Serialise** — values are emitted as type-tagged nodes by a cycle-safe,
+   budget-bound serialiser, and streamed one message per log.
+
+The output pane positions each line's entries at the pixel offset Monaco
+reports for that line, pushed down only as far as the previous block's
+measured height requires. Monaco is the only scroll authority for both panes.
+
+### Layout
+
+```
+main.cjs              Electron entry: window, lifecycle
+electron/             Main process: ipc, workspace store, security policy,
+                      menu, module cache, node runtime, updater
+preload.cjs           The renderer's entire bridge surface
+src/platform/         Renderer-side adapter over that bridge, with browser
+                      fallbacks so `npm run dev` works
+src/runtime/          Protocol, serialiser, instrumentation, both runtimes
+src/hooks/            Workspace, runner, commands, files, history
+src/components/       UI
+scripts/verify-app.cjs  Electron smoke test
+```
+
+## Technologies
+
+- **Electron** — window shell, Node runtime, module cache, updates
+- **React** — user interface
+- **Vite** — build tooling for the renderer and the Node runtime
+- **Monaco** — editor, bundled locally
+- **acorn** and **magic-string** — instrumentation
+- **esbuild-wasm** — TypeScript and JSX
+- **Prettier** — formatting
+- **Vitest** — tests

@@ -1,7 +1,7 @@
 {
   "name": "sandbox",
   "author": "Carlos Junior Ramos Vásquez",
-  "description": "SandBox is a lightweight and versatile development environment designed to run and test JavaScript code quickly and efficiently. Its minimalist approach and intuitive interface make it an ideal tool for developers looking to experiment with code without complex configurations.",
+  "description": "Sandbox is a hot-reloading scratchpad for JavaScript and TypeScript. Output is anchored to the line that produced it, values render as inspectable trees, npm packages load from a local cache, and a tab can be evaluated in a real Node process.",
   "version": "1.0.0",
   "type": "module",
   "main": "./main.cjs",
