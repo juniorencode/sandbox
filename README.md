@@ -1,20 +1,32 @@
-# RunJS Clone
+# Sandbox
 
-An interactive execution environment for JavaScript, built with **Vite**, **React**, and **Electron**.
+A hot-reloading scratchpad for JavaScript, built with **Vite**, **React** and
+**Electron**. Type code on the left, see what every line produced on the right.
 
 ## Installation
 
-Just install the program, no additional configuration required.
+Install the program, no additional configuration required.
 
 ## Features
 
-- Run JavaScript code in real-time.
-- Supports both ES modules and CommonJS.
-- Intuitive interface with syntax highlighting.
-- Execution history and multi-tab support.
+- Runs JavaScript as you type, with the output aligned to the line that produced it.
+- Multi-tab workspace, persisted between sessions.
+- Syntax highlighting and IntelliSense via a locally bundled Monaco editor.
+- Fully offline: nothing is fetched at runtime.
 
 ## Technologies
 
-- **Electron**: For OS integration.
-- **React**: For the graphical interface.
-- **Vite**: For fast application build.
+- **Electron**: OS integration and window shell.
+- **React**: user interface.
+- **Vite**: build tooling.
+- **Monaco**: code editor.
+
+## Development
+
+```
+npm install
+npm run dev        # renderer only, in a browser tab
+npm run electron   # build the renderer and launch the desktop app
+npm run build      # produce an installer via electron-builder
+npm run lint
+```
