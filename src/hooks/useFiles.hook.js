@@ -118,6 +118,9 @@ export const useFiles = ({
   return {
     notice,
     dismiss,
+    // Exposed so actions outside this hook, such as formatting, can surface a
+    // message through the same toast rather than inventing their own.
+    report,
     openFiles,
     save,
     saveAs,

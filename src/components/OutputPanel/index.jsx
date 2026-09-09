@@ -28,7 +28,8 @@ export const OutputPanel = ({
   viewport,
   onExpand,
   overflowed,
-  width,
+  style,
+  fontSize,
   onContentBottom
 }) => {
   const [collapsedGroups, setCollapsedGroups] = useState(() => new Set());
@@ -105,9 +106,10 @@ export const OutputPanel = ({
   return (
     <div
       ref={containerRef}
-      className="relative h-full min-w-0 overflow-hidden bg-no-repeat bg-[length:50%] bg-center text-[14px] leading-[1.36] text-neutral-300"
+      className="relative min-h-0 min-w-0 overflow-hidden bg-no-repeat bg-[length:50%] bg-center leading-[1.36] text-neutral-300"
       style={{
-        width,
+        ...style,
+        fontSize: `${fontSize}px`,
         backgroundImage: empty ? `url('shape.png')` : 'none'
       }}
     >
@@ -165,6 +167,7 @@ OutputPanel.propTypes = {
   }).isRequired,
   onExpand: PropTypes.func,
   overflowed: PropTypes.bool,
-  width: PropTypes.string.isRequired,
+  style: PropTypes.object.isRequired,
+  fontSize: PropTypes.number.isRequired,
   onContentBottom: PropTypes.func
 };

@@ -1,5 +1,6 @@
 import PropTypes from 'prop-types';
 import {
+  VscSettingsGear,
   VscDebugStop,
   VscPlay,
   VscTrash,
@@ -50,7 +51,8 @@ export const StatusBar = ({
   onRun,
   onStop,
   onClear,
-  onOpenPalette
+  onOpenPalette,
+  onOpenSettings
 }) => (
   <div className="flex h-6 shrink-0 items-center gap-3 border-t border-[#2d3641] bg-[#14181f] px-3 text-[12px] text-[#9198A1] select-none">
     <span className={`flex items-center gap-1 ${TONE[status] ?? ''}`}>
@@ -147,6 +149,15 @@ export const StatusBar = ({
         <VscSymbolEvent size={12} />
         Commands
       </button>
+
+      <button
+        className="flex items-center gap-1 rounded px-2 py-0.5 hover:bg-[#2d3641]"
+        onClick={onOpenSettings}
+        title={withHint('Settings', hints.settings)}
+        aria-label="Settings"
+      >
+        <VscSettingsGear size={12} />
+      </button>
     </div>
   </div>
 );
@@ -168,5 +179,6 @@ StatusBar.propTypes = {
   onRun: PropTypes.func.isRequired,
   onStop: PropTypes.func.isRequired,
   onClear: PropTypes.func.isRequired,
-  onOpenPalette: PropTypes.func.isRequired
+  onOpenPalette: PropTypes.func.isRequired,
+  onOpenSettings: PropTypes.func.isRequired
 };

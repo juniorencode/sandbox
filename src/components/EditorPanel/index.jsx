@@ -37,7 +37,10 @@ export const EditorPanel = ({
   onEditorReady,
   markers,
   extraBottomPadding,
-  width
+  fontSize,
+  tabSize,
+  wordWrap,
+  style
 }) => {
   const editorRef = useRef(null);
 
@@ -109,7 +112,7 @@ export const EditorPanel = ({
   }, [extraBottomPadding]);
 
   return (
-    <div className="h-full min-w-0" style={{ width }}>
+    <div className="min-h-0 min-w-0" style={style}>
       <Editor
         theme="github-dark-theme"
         language={MONACO_LANGUAGE[language] ?? 'javascript'}
@@ -121,6 +124,9 @@ export const EditorPanel = ({
           smoothScrolling: true,
           fixedOverflowWidgets: true,
           renderLineHighlight: 'line',
+          fontSize,
+          tabSize,
+          wordWrap: wordWrap ? 'on' : 'off',
           scrollbar: { verticalScrollbarSize: 12, useShadows: false }
         }}
         onChange={onChange}
@@ -144,5 +150,8 @@ EditorPanel.propTypes = {
     })
   ).isRequired,
   extraBottomPadding: PropTypes.number.isRequired,
-  width: PropTypes.string.isRequired
+  fontSize: PropTypes.number.isRequired,
+  tabSize: PropTypes.number.isRequired,
+  wordWrap: PropTypes.bool.isRequired,
+  style: PropTypes.object.isRequired
 };
