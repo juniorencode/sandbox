@@ -20,6 +20,7 @@ const store = require('../electron/store.cjs');
 const ipc = require('../electron/ipc.cjs');
 const security = require('../electron/security.cjs');
 const modules = require('../electron/modules.cjs');
+const { createNodeRuntime } = require('../electron/nodeMode.cjs');
 
 const ROOT = path.join(__dirname, '..');
 const VISIBLE = process.argv.includes('--show');
@@ -68,6 +69,9 @@ const expect = (condition, message) => {
   if (!condition) problems.push(message);
 };
 
+/** Status bar text is multi-line; collapse it for a readable log line. */
+const oneLine = text => String(text ?? '').split(/\r?\n/).join(' | ');
+
 app.commandLine.appendSwitch('disable-gpu');
 
 // Privileged schemes must be declared before the app is ready, exactly as
@@ -91,7 +95,6 @@ app.whenReady().then(async () => {
   // This script is its own Electron main process, so it has to register the
   // same channels main.cjs does or the renderer's workspace read has nothing
   // to talk to.
-  ipc.register(() => currentWindow);
 
   // The same policy main.cjs installs. A Content Security Policy that is too
   // strict only breaks in a packaged build, so it has to be part of what is
@@ -102,6 +105,12 @@ app.whenReady().then(async () => {
     allow: () => true
   });
   moduleServer.install();
+
+  const nodeRuntime = createNodeRuntime(() => currentWindow, {
+    userData: app.getPath('userData')
+  });
+
+  ipc.register(() => currentWindow, { moduleServer, nodeRuntime });
 
   const indexFile = path.join(ROOT, 'build', 'index.html');
   if (!fs.existsSync(indexFile)) {
@@ -123,6 +132,22 @@ app.whenReady().then(async () => {
   });
 
   security.guardNavigation(win.webContents);
+
+  // Temporary diagnostic: logs what the main process actually sends the
+  // renderer on the node channel.
+  if (process.argv.includes('--trace-node')) {
+    const originalSend = win.webContents.send.bind(win.webContents);
+    win.webContents.send = (channel, payload) => {
+      if (channel === 'node:message') {
+        const text =
+          payload?.t === 'node-stdio'
+            ? payload.stream + ': ' + payload.text.trim()
+            : JSON.stringify(payload).slice(0, 300);
+        console.log('  <node ipc>', text);
+      }
+      return originalSend(channel, payload);
+    };
+  }
 
   currentWindow = win;
 
@@ -290,14 +315,18 @@ app.whenReady().then(async () => {
 
   const switched = await win.webContents.executeJavaScript(`
     (() => {
-      const select = document.querySelector('.h-6 select');
+      const select = document.querySelector(
+        'select[aria-label="Language for this tab"]'
+      );
       if (!select) return false;
       select.value = 'typescript';
       select.dispatchEvent(new Event('change', { bubbles: true }));
-      return true;
+      return select.value;
     })()
   `);
-  if (!switched) problems.push('the language selector was not found');
+  if (switched !== 'typescript') {
+    problems.push(`the language selector did not switch: ${switched}`);
+  }
 
   await sleep(500);
   win.webContents.focus();
@@ -320,6 +349,74 @@ app.whenReady().then(async () => {
     `typescript did not run: ${JSON.stringify(typescript.output)}`
   );
 
+
+  /**
+   * Node mode: the one thing a browser tab cannot do, and the reason the app
+   * stays on Electron. Also covers the confirmation gate, since switching a
+   * tab into Node mode moves it out of the sandbox.
+   */
+  await win.webContents.executeJavaScript('localStorage.clear(); true');
+  for (const target of [workspaceFile, workspaceBackup]) {
+    try {
+      if (fs.existsSync(target)) fs.unlinkSync(target);
+    } catch {
+      /* nothing to clean */
+    }
+  }
+  await win.webContents.reload();
+  await sleep(2500);
+
+  const gated = await win.webContents.executeJavaScript(`
+    (() => {
+      const runtime = document.querySelector(
+        'select[aria-label="Runtime for this tab"]'
+      );
+      if (!runtime) return 'no-select';
+      runtime.value = 'node';
+      runtime.dispatchEvent(new Event('change', { bubbles: true }));
+      return 'switched';
+    })()
+  `);
+  if (gated !== 'switched') problems.push('the runtime selector was not found');
+
+  await sleep(400);
+  const confirmed = await win.webContents.executeJavaScript(`
+    (() => {
+      const button = [...document.querySelectorAll('button')].find(
+        node => node.textContent.trim() === 'Enable Node mode'
+      );
+      if (!button) return false;
+      button.click();
+      return true;
+    })()
+  `);
+  if (!confirmed) {
+    problems.push('the Node mode confirmation did not appear');
+  }
+
+  await sleep(600);
+  win.webContents.focus();
+  win.webContents.sendInputEvent({ type: 'mouseDown', x: 300, y: 200, button: 'left', clickCount: 1 });
+  win.webContents.sendInputEvent({ type: 'mouseUp', x: 300, y: 200, button: 'left', clickCount: 1 });
+  await sleep(300);
+
+  await typeText(win, 'const os = require("os")');
+  pressEnter(win);
+  await typeText(win, 'console.log(typeof os.platform(), typeof process.pid)');
+  await sleep(5000);
+
+  const nodeRun = await readState(win);
+  const activeRuntime = await win.webContents.executeJavaScript(
+    `(document.querySelector('select[aria-label="Runtime for this tab"]') || {}).value || '?'`
+  );
+  console.log('node   :', JSON.stringify(nodeRun.output), '| runtime =', activeRuntime);
+  console.log('  status:', JSON.stringify(oneLine(nodeRun.status)));
+  console.log('  editor:', JSON.stringify(nodeRun.editor.slice(0, 120)));
+  expect(
+    nodeRun.output.includes('string') && nodeRun.output.includes('number'),
+    `node mode did not run: ${JSON.stringify(nodeRun.output)}`
+  );
+
   if (SHOT) {
     const image = await win.webContents.capturePage();
     const target = path.join(ROOT, 'build', 'verify-app.png');
@@ -334,5 +431,6 @@ app.whenReady().then(async () => {
     console.log('\nOK');
   }
 
+  nodeRuntime.dispose();
   app.exit(problems.length ? 1 : 0);
 });

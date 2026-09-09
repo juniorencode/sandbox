@@ -160,6 +160,12 @@ export const useCommands = ({
         run: editorActions.openSettings
       },
       {
+        id: 'node.revealDir',
+        title: 'Show Node mode packages folder',
+        group: 'Workspace',
+        run: fileActions.showNodeFolder
+      },
+      {
         id: 'app.checkUpdates',
         title: 'Check for updates',
         group: 'General',

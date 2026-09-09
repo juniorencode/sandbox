@@ -8,12 +8,13 @@
   "scripts": {
     "dev": "vite",
     "prebuild-vite": "node scripts/copy-wasm.cjs",
-    "build-vite": "vite build",
+    "build-vite": "vite build && npm run build-runner",
+    "build-runner": "vite build --config vite.node-runner.config.js",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "verify:app": "electron scripts/verify-app.cjs",
+    "verify:app": "node --check scripts/verify-app.cjs && electron scripts/verify-app.cjs",
     "preview": "vite preview",
     "electron": "npm run build-vite && electron .",
     "build": "npm run build-vite && electron-builder"

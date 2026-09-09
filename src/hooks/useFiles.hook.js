@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { files, revealWorkspace, workspace as store } from '../platform';
+import { files, node, revealWorkspace, workspace as store } from '../platform';
 import { languageForName } from './useWorkspace.hook';
 
 /**
@@ -115,6 +115,14 @@ export const useFiles = ({
 
   const showWorkspaceFolder = useCallback(() => revealWorkspace(), []);
 
+  /** Where `npm install` makes packages reachable from Node-mode tabs. */
+  const showNodeFolder = useCallback(async () => {
+    const result = await node.revealDir();
+    if (result?.ok === false) {
+      report('error', result.error || 'Node mode is not available');
+    }
+  }, [report]);
+
   return {
     notice,
     dismiss,
@@ -126,6 +134,7 @@ export const useFiles = ({
     saveAs,
     exportWorkspace,
     importWorkspace,
-    showWorkspaceFolder
+    showWorkspaceFolder,
+    showNodeFolder
   };
 };
