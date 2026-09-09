@@ -87,7 +87,8 @@ const normalize = raw => {
   return {
     tabs: safeTabs,
     activeTab: activeExists ? raw.activeTab : safeTabs[0].id,
-    settings: { ...DEFAULT_SETTINGS, ...(raw?.settings || {}) }
+    settings: { ...DEFAULT_SETTINGS, ...(raw?.settings || {}) },
+    history: Array.isArray(raw?.history) ? raw.history : []
   };
 };
 
@@ -255,6 +256,13 @@ export const useWorkspace = () => {
     }));
   }, []);
 
+  const setHistory = useCallback(update => {
+    setState(previous => ({
+      ...previous,
+      history: typeof update === 'function' ? update(previous.history) : update
+    }));
+  }, []);
+
   const replaceWorkspace = useCallback(raw => {
     setState(normalize(raw));
   }, []);
@@ -265,6 +273,8 @@ export const useWorkspace = () => {
     activeTabId: state.activeTab,
     activeTab,
     settings: state.settings,
+    history: state.history,
+    setHistory,
     persistError,
     snapshot: state,
     setActive,

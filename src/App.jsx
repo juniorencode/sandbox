@@ -3,6 +3,7 @@ import { CommandPalette } from './components/CommandPalette';
 import { EditorPanel } from './components/EditorPanel';
 import { OutputPanel } from './components/OutputPanel';
 import { SettingsDialog } from './components/SettingsDialog';
+import { SidePanel } from './components/SidePanel';
 import { StatusBar } from './components/StatusBar';
 import { TabBar } from './components/TabBar';
 import { Toast } from './components/Toast';
@@ -10,6 +11,7 @@ import { UpdateBanner } from './components/UpdateBanner';
 import { useCommands } from './hooks/useCommands.hook';
 import { useEditorViewport } from './hooks/useEditorViewport.hook';
 import { useFiles } from './hooks/useFiles.hook';
+import { useHistory } from './hooks/useHistory.hook';
 import { useMenuBridge } from './hooks/useMenuBridge.hook';
 import { useRunner, STATUS } from './hooks/useRunner.hook';
 import { useShortcuts } from './hooks/useShortcuts.hook';
@@ -34,6 +36,8 @@ const App = () => {
     activeTabId,
     activeTab,
     settings,
+    history,
+    setHistory,
     persistError,
     updateCode,
     updateSettings
@@ -44,11 +48,15 @@ const App = () => {
   const [extraBottomPadding, setExtraBottomPadding] = useState(0);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [panelView, setPanelView] = useState(null);
+  const [pendingReveal, setPendingReveal] = useState(null);
   const [appInfo, setAppInfo] = useState(null);
 
   const runTimerRef = useRef(null);
   const lastRunTabRef = useRef(null);
   const splitRef = useRef(null);
+  const explicitRunRef = useRef(false);
+  const recordedRunRef = useRef(null);
 
   const language = activeTab?.language ?? 'javascript';
   const vertical = settings.layout === 'vertical';
@@ -74,6 +82,7 @@ const App = () => {
 
   const fileActions = useFiles(workspace);
   const updateState = useUpdates();
+  const historyLog = useHistory({ history, setHistory });
 
   useEffect(() => {
     readAppInfo().then(info => info?.ok && setAppInfo(info));
@@ -85,6 +94,9 @@ const App = () => {
         clearTimeout(runTimerRef.current);
         runTimerRef.current = null;
       }
+      // Marks the run as deliberate, which history records unconditionally;
+      // automatic runs are filtered so a keystroke is not a snapshot.
+      explicitRunRef.current = true;
       run(code ?? activeTab?.code ?? '', { language });
     },
     [run, activeTab, language]
@@ -130,6 +142,14 @@ const App = () => {
     []
   );
 
+  const panel = useMemo(
+    () => ({
+      open: view => setPanelView(current => (current === view ? null : view)),
+      close: () => setPanelView(null)
+    }),
+    []
+  );
+
   const runner = useMemo(
     () => ({ runNow: () => runNow(), stop, clear, toggleAutoRun }),
     [runNow, stop, clear, toggleAutoRun]
@@ -145,6 +165,7 @@ const App = () => {
     workspace,
     fileActions,
     editorActions,
+    panel,
     palette,
     settings,
     updates: updateState
@@ -245,6 +266,47 @@ const App = () => {
   useEffect(() => {
     modules.setAllowed(settings.allowModuleDownloads);
   }, [settings.allowModuleDownloads]);
+
+  /**
+   * Snapshots are taken on settle rather than on edit, so what is recorded is
+   * what actually ran. The signature guard keeps one settle from being
+   * recorded twice when late async output re-renders.
+   */
+  useEffect(() => {
+    if (status !== STATUS.SETTLED || !activeTab) return;
+    const signature = activeTab.id + ':' + activeTab.code.length + ':' + duration;
+    if (recordedRunRef.current === signature) return;
+    recordedRunRef.current = signature;
+
+    const explicit = explicitRunRef.current;
+    explicitRunRef.current = false;
+
+    historyLog.record({
+      tabId: activeTab.id,
+      name: activeTab.name,
+      language: activeTab.language,
+      code: activeTab.code,
+      summary: {
+        entries: entries.length,
+        durationMs: duration,
+        errored: entries.some(entry => entry.t === ERROR)
+      },
+      explicit
+    });
+    // `entries` is read for the summary but must not retrigger this as late
+    // output arrives.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, duration, activeTab]);
+
+  /**
+   * A search hit can point at a tab that is not showing, so the jump waits
+   * until that tab's model is the one in the editor.
+   */
+  useEffect(() => {
+    if (!pendingReveal || pendingReveal.tabId !== activeTabId) return;
+    viewport.revealLine(pendingReveal.line);
+    setPendingReveal(null);
+  }, [pendingReveal, activeTabId, viewport]);
 
   const markers = useMemo(
     () =>
@@ -383,6 +445,29 @@ const App = () => {
           fontSize={settings.fontSize}
           style={{ flex: '1 1 0%' }}
           onContentBottom={setOutputBottom}
+        />
+
+        <SidePanel
+          open={Boolean(panelView)}
+          view={panelView ?? 'history'}
+          onView={setPanelView}
+          onClose={panel.close}
+          tabs={tabs}
+          history={historyLog.entries}
+          onRestore={snapshot => updateCode(activeTabId, snapshot.code)}
+          onOpenAsTab={snapshot =>
+            workspace.addTab({
+              name: snapshot.name + ' (restored)',
+              code: snapshot.code,
+              language: snapshot.language
+            })
+          }
+          onRemove={historyLog.remove}
+          onClear={historyLog.clear}
+          onReveal={(tabId, line) => {
+            workspace.setActive(tabId);
+            setPendingReveal({ tabId, line });
+          }}
         />
       </div>
 

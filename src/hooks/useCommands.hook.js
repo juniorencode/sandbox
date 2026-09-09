@@ -13,6 +13,7 @@ export const useCommands = ({
   workspace,
   fileActions,
   editorActions,
+  panel,
   palette,
   settings,
   updates
@@ -131,6 +132,20 @@ export const useCommands = ({
         run: fileActions.showWorkspaceFolder
       },
       {
+        id: 'search.open',
+        title: 'Find in all tabs',
+        group: 'General',
+        shortcut: 'Mod+Shift+F',
+        run: () => panel.open('search')
+      },
+      {
+        id: 'history.open',
+        title: 'Execution history',
+        group: 'General',
+        shortcut: 'Mod+H',
+        run: () => panel.open('history')
+      },
+      {
         id: 'editor.format',
         title: 'Format document',
         group: 'Editor',
@@ -156,6 +171,7 @@ export const useCommands = ({
     workspace,
     fileActions,
     editorActions,
+    panel,
     palette,
     settings.autoRun,
     updates
