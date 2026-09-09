@@ -30,11 +30,22 @@ export const DEFAULT_SETTINGS = {
   allowModuleDownloads: true
 };
 
+const LANGUAGES = ['javascript', 'jsx', 'typescript', 'tsx'];
+
+/** Guessed from the extension when a real file is opened. */
+export const languageForName = name => {
+  if (/\.tsx$/i.test(name)) return 'tsx';
+  if (/\.ts$/i.test(name)) return 'typescript';
+  if (/\.jsx$/i.test(name)) return 'jsx';
+  return 'javascript';
+};
+
 const freshTab = (id, name) => ({
   id,
   name: name ?? `Tab ${id}`,
   code: '',
-  path: null
+  path: null,
+  language: 'javascript'
 });
 
 const nextId = tabs => {
@@ -53,7 +64,10 @@ const normalize = raw => {
           id: Number.isInteger(tab.id) ? tab.id : index + 1,
           name: typeof tab.name === 'string' ? tab.name : `Tab ${index + 1}`,
           code: typeof tab.code === 'string' ? tab.code : '',
-          path: typeof tab.path === 'string' ? tab.path : null
+          path: typeof tab.path === 'string' ? tab.path : null,
+          language: LANGUAGES.includes(tab.language)
+            ? tab.language
+            : 'javascript'
         }))
     : [];
 
@@ -214,6 +228,16 @@ export const useWorkspace = () => {
     }));
   }, []);
 
+  const setTabLanguage = useCallback((id, language) => {
+    if (!LANGUAGES.includes(language)) return;
+    setState(previous => ({
+      ...previous,
+      tabs: previous.tabs.map(tab =>
+        tab.id === id ? { ...tab, language } : tab
+      )
+    }));
+  }, []);
+
   const updateSettings = useCallback(patch => {
     setState(previous => ({
       ...previous,
@@ -240,6 +264,7 @@ export const useWorkspace = () => {
     renameTab,
     moveTab,
     setTabPath,
+    setTabLanguage,
     updateSettings,
     replaceWorkspace
   };

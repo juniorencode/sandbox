@@ -27,3 +27,6 @@ dist-ssr
 
 # Scratch directory used by the main-process tests
 .test-tmp
+
+# Copied from node_modules by scripts/copy-wasm.cjs
+public/esbuild.wasm

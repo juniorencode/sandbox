@@ -175,6 +175,34 @@ const register = (
     userData: app.getPath('userData')
   }));
 
+  // --- bundled assets -------------------------------------------------------
+
+  /**
+   * esbuild's wasm binary, read from disk.
+   *
+   * The renderer is loaded from file://, where fetching a sibling file is
+   * blocked, so the bytes are handed over the bridge instead. Copied into the
+   * build under a stable name by scripts/copy-wasm.cjs.
+   */
+  ipcMain.handle('assets:esbuildWasm', () => {
+    for (const candidate of [
+      path.join(__dirname, '..', 'build', 'esbuild.wasm'),
+      path.join(__dirname, '..', 'public', 'esbuild.wasm'),
+      path.join(__dirname, '..', 'node_modules', 'esbuild-wasm', 'esbuild.wasm')
+    ]) {
+      try {
+        if (fs.existsSync(candidate)) {
+          // Sent as a plain Uint8Array: a Buffer would arrive as a plain
+          // object through structured clone.
+          return { ok: true, wasm: new Uint8Array(fs.readFileSync(candidate)) };
+        }
+      } catch {
+        // Try the next location.
+      }
+    }
+    return { ok: false, error: 'esbuild.wasm was not found in this build' };
+  });
+
   // --- module cache ---------------------------------------------------------
 
   ipcMain.handle('modules:stats', () =>

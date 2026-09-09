@@ -3,6 +3,7 @@ import {
   RUN,
   CANCEL,
   EXPAND,
+  INIT,
   READY,
   LOG,
   GROUP,
@@ -52,6 +53,7 @@ export const useRunner = ({
   enabled = true
 } = {}) => {
   const [entries, setEntries] = useState([]);
+  const [transpiler, setTranspiler] = useState({ status: 'idle' });
   const [status, setStatus] = useState(STATUS.STARTING);
   const [duration, setDuration] = useState(null);
   const [overflowed, setOverflowed] = useState(false);
@@ -119,6 +121,16 @@ export const useRunner = ({
       if (!message) return;
 
       if (message.t === READY) {
+        // The same message reports both the worker booting and the
+        // TypeScript compiler finishing initialisation.
+        if (message.transpiler !== undefined) {
+          setTranspiler(
+            message.transpiler
+              ? { status: 'ready' }
+              : { status: 'error', message: message.error }
+          );
+          return;
+        }
         setStatus(current =>
           current === STATUS.STARTING ? STATUS.IDLE : current
         );
@@ -205,8 +217,19 @@ export const useRunner = ({
     [clearWatchdog, spawn]
   );
 
+  /**
+   * Hands the compiler its wasm binary. Lazy on purpose: a workspace that
+   * only runs JavaScript never pays the cost of loading it.
+   */
+  const initTranspiler = useCallback(wasm => {
+    const worker = workerRef.current;
+    if (!worker) return;
+    setTranspiler({ status: 'loading' });
+    worker.postMessage({ t: INIT, wasm }, [wasm.buffer].filter(Boolean));
+  }, []);
+
   const run = useCallback(
-    code => {
+    (code, { language = 'javascript' } = {}) => {
       const worker = workerRef.current;
       if (!worker) return;
 
@@ -227,7 +250,12 @@ export const useRunner = ({
       }
 
       setStatus(STATUS.RUNNING);
-      worker.postMessage({ t: RUN, runId, code, options: { limits } });
+      worker.postMessage({
+        t: RUN,
+        runId,
+        code,
+        options: { limits, language }
+      });
 
       watchdogRef.current = setTimeout(() => {
         watchdogRef.current = null;
@@ -280,10 +308,12 @@ export const useRunner = ({
     status,
     duration,
     overflowed,
+    transpiler,
     running: status === STATUS.RUNNING,
     run,
     stop,
     clear,
-    expand
+    expand,
+    initTranspiler
   };
 };

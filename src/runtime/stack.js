@@ -85,7 +85,9 @@ export const locate = (error, offset) => {
 export const cleanStack = (error, offset) => {
   try {
     const stack = error?.stack;
-    if (typeof stack !== 'string') return '';
+    // Always an array: `throw 'text'` has no stack, and returning a different
+    // shape for that case made every caller guess.
+    if (typeof stack !== 'string') return [];
     const frames = [];
     for (const raw of stack.split('\n').slice(1)) {
       const match = FRAME.exec(raw);

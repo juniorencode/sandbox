@@ -45,6 +45,10 @@ contextBridge.exposeInMainWorld('sandbox', {
     onCommand: callback => subscribe('menu:command', callback)
   },
 
+  assets: {
+    esbuildWasm: () => ipcRenderer.invoke('assets:esbuildWasm')
+  },
+
   modules: {
     stats: () => ipcRenderer.invoke('modules:stats'),
     clear: () => ipcRenderer.invoke('modules:clear'),

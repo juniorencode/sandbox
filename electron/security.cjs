@@ -22,7 +22,10 @@ const POLICY = [
   // The private module scheme is served by the main process from a local
   // cache, so packages load without opening the renderer to a third-party
   // origin and without any network access once cached.
-  `script-src 'self' 'unsafe-eval' ${MODULE_SCHEME}:`,
+  // wasm-unsafe-eval covers WebAssembly.compile, which the TypeScript and
+  // JSX compiler needs; unsafe-eval covers AsyncFunction, which is the
+  // product itself.
+  `script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' ${MODULE_SCHEME}:`,
   // Monaco injects its own stylesheets at runtime.
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",

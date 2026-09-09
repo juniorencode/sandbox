@@ -171,6 +171,15 @@ export const appInfo = async () => {
 export const onMenuCommand = callback =>
   bridge?.app.onCommand(callback) ?? (() => {});
 
+export const assets = {
+  /** esbuild's wasm binary, or a failure the UI can explain. */
+  esbuildWasm: () =>
+    attempt(
+      () => bridge?.assets.esbuildWasm(),
+      { ok: false, error: 'TypeScript support needs the desktop app' }
+    )
+};
+
 export const modules = {
   stats: () => attempt(() => bridge?.modules.stats(), { ok: false }),
   clear: () => attempt(() => bridge?.modules.clear(), { ok: false }),

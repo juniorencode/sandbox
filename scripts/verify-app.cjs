@@ -268,6 +268,58 @@ app.whenReady().then(async () => {
     console.log('import : skipped (no cached packages and no network)');
   }
 
+  /**
+   * TypeScript, which the previous engine could not run at all: a type
+   * annotation was a syntax error from the evaluator with no explanation.
+   *
+   * The compiler is loaded on demand, so this also covers the lazy wasm
+   * handover, and the assertion on the reported line covers the source map
+   * mapping: without it a console call would be reported against the
+   * generated text rather than what was typed.
+   */
+  await win.webContents.executeJavaScript('localStorage.clear(); true');
+  for (const target of [workspaceFile, workspaceBackup]) {
+    try {
+      if (fs.existsSync(target)) fs.unlinkSync(target);
+    } catch {
+      /* nothing to clean */
+    }
+  }
+  await win.webContents.reload();
+  await sleep(2500);
+
+  const switched = await win.webContents.executeJavaScript(`
+    (() => {
+      const select = document.querySelector('.h-6 select');
+      if (!select) return false;
+      select.value = 'typescript';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    })()
+  `);
+  if (!switched) problems.push('the language selector was not found');
+
+  await sleep(500);
+  win.webContents.focus();
+  win.webContents.sendInputEvent({ type: 'mouseDown', x: 300, y: 200, button: 'left', clickCount: 1 });
+  win.webContents.sendInputEvent({ type: 'mouseUp', x: 300, y: 200, button: 'left', clickCount: 1 });
+  await sleep(300);
+
+  await typeText(win, 'interface P { x: number }');
+  pressEnter(win);
+  await typeText(win, 'const p: P = { x: 41 }');
+  pressEnter(win);
+  await typeText(win, 'console.log(p.x + 1)');
+  // The 14 MB compiler is fetched and initialised on demand.
+  await sleep(9000);
+
+  const typescript = await readState(win);
+  console.log('ts     :', JSON.stringify(typescript.output));
+  expect(
+    typescript.output.includes('42'),
+    `typescript did not run: ${JSON.stringify(typescript.output)}`
+  );
+
   if (SHOT) {
     const image = await win.webContents.capturePage();
     const target = path.join(ROOT, 'build', 'verify-app.png');

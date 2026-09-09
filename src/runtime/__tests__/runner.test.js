@@ -113,10 +113,14 @@ describe('runner worker', () => {
 
   it('reports a thrown non-Error', async () => {
     const messages = await worker.run('throw "just a string"');
-    expect(errors(messages)[0]).toMatchObject({
+    const failure = errors(messages)[0];
+    expect(failure).toMatchObject({
       name: 'Uncaught',
       message: 'just a string'
     });
+    // A value with no stack still has to report an array of frames, not a
+    // different shape that every caller would have to guess at.
+    expect(Array.isArray(failure.frames)).toBe(true);
   });
 
   it('survives user code sabotaging the logger', async () => {
