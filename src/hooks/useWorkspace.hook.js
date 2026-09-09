@@ -37,10 +37,13 @@ export const DEFAULT_SETTINGS = {
   maxItems: 100,
   // Whether a package that is not cached yet may be downloaded. Cached
   // packages always load, so turning this off does not break existing code.
-  allowModuleDownloads: true
+  allowModuleDownloads: true,
+  // Set once the user has confirmed they understand what Node mode does.
+  nodeModeAcknowledged: false
 };
 
 const LANGUAGES = ['javascript', 'jsx', 'typescript', 'tsx'];
+export const RUNTIMES = ['browser', 'node'];
 
 /** Guessed from the extension when a real file is opened. */
 export const languageForName = name => {
@@ -55,7 +58,10 @@ const freshTab = (id, name) => ({
   name: name ?? `Tab ${id}`,
   code: '',
   path: null,
-  language: 'javascript'
+  language: 'javascript',
+  // Which runtime evaluates this tab. Browser is a sandboxed worker; node is
+  // a real Node process with the app's privileges, so it is never a default.
+  runtime: 'browser'
 });
 
 const nextId = tabs => {
@@ -77,7 +83,8 @@ const normalize = raw => {
           path: typeof tab.path === 'string' ? tab.path : null,
           language: LANGUAGES.includes(tab.language)
             ? tab.language
-            : 'javascript'
+            : 'javascript',
+          runtime: RUNTIMES.includes(tab.runtime) ? tab.runtime : 'browser'
         }))
     : [];
 
@@ -249,6 +256,14 @@ export const useWorkspace = () => {
     }));
   }, []);
 
+  const setTabRuntime = useCallback((id, runtime) => {
+    if (!RUNTIMES.includes(runtime)) return;
+    setState(previous => ({
+      ...previous,
+      tabs: previous.tabs.map(tab => (tab.id === id ? { ...tab, runtime } : tab))
+    }));
+  }, []);
+
   const updateSettings = useCallback(patch => {
     setState(previous => ({
       ...previous,
@@ -285,6 +300,7 @@ export const useWorkspace = () => {
     moveTab,
     setTabPath,
     setTabLanguage,
+    setTabRuntime,
     updateSettings,
     replaceWorkspace
   };

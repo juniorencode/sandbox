@@ -171,6 +171,16 @@ export const appInfo = async () => {
 export const onMenuCommand = callback =>
   bridge?.app.onCommand(callback) ?? (() => {});
 
+export const node = {
+  available: Boolean(bridge?.node),
+  start: () => attempt(() => bridge?.node.start(), { ok: false }),
+  send: message => bridge?.node.send(message),
+  kill: () => attempt(() => bridge?.node.kill(), { ok: true }),
+  paths: () => attempt(() => bridge?.node.paths(), { ok: false }),
+  revealDir: () => attempt(() => bridge?.node.revealDir(), { ok: false }),
+  onMessage: callback => bridge?.node.onMessage(callback) ?? (() => {})
+};
+
 export const assets = {
   /** esbuild's wasm binary, or a failure the UI can explain. */
   esbuildWasm: () =>

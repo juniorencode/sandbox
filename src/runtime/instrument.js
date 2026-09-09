@@ -1,6 +1,9 @@
 import { Parser } from 'acorn';
 import * as walk from 'acorn-walk';
-import MagicString from 'magic-string';
+// Named rather than default: bundling this module to CJS for the Node-mode
+// runtime makes the interop resolve the default to the namespace object, and
+// `new MagicString(...)` then fails with "not a constructor".
+import { MagicString } from 'magic-string';
 
 /**
  * Source-to-source transform applied before the code is evaluated.

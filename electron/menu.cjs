@@ -14,8 +14,11 @@ const { Menu, app, shell } = require('electron');
  * than being a second implementation.
  */
 
-const send = (window, id) => () =>
-  window()?.webContents.send('menu:command', id);
+const send = (getWindow, id) => () => {
+  const window = getWindow();
+  if (!window || window.isDestroyed()) return;
+  window.webContents.send('menu:command', id);
+};
 
 const build = getWindow => {
   const command = id => send(getWindow, id);

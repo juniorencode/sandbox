@@ -45,6 +45,15 @@ contextBridge.exposeInMainWorld('sandbox', {
     onCommand: callback => subscribe('menu:command', callback)
   },
 
+  node: {
+    start: () => ipcRenderer.invoke('node:start'),
+    send: message => ipcRenderer.send('node:send', message),
+    kill: () => ipcRenderer.invoke('node:kill'),
+    paths: () => ipcRenderer.invoke('node:paths'),
+    revealDir: () => ipcRenderer.invoke('node:revealDir'),
+    onMessage: callback => subscribe('node:message', callback)
+  },
+
   assets: {
     esbuildWasm: () => ipcRenderer.invoke('assets:esbuildWasm')
   },

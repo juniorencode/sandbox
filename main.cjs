@@ -2,6 +2,7 @@ const path = require('path');
 const { app, BrowserWindow, screen } = require('electron');
 const ipc = require('./electron/ipc.cjs');
 const modules = require('./electron/modules.cjs');
+const { createNodeRuntime } = require('./electron/nodeMode.cjs');
 const menu = require('./electron/menu.cjs');
 const security = require('./electron/security.cjs');
 const updater = require('./electron/updater.cjs');
@@ -11,6 +12,7 @@ let mainWindow = null;
 let windowState = null;
 let updates = null;
 let moduleServer = null;
+let nodeRuntime = null;
 
 /**
  * Privileged schemes have to be declared before the app is ready, otherwise
@@ -100,6 +102,10 @@ app.whenReady().then(() => {
   });
   moduleServer.install();
 
+  nodeRuntime = createNodeRuntime(getWindow, {
+    userData: app.getPath('userData')
+  });
+
   // Registered once for the lifetime of the process, against a getter rather
   // than a captured window: doing this inside createWindow meant recreating
   // the window registered every listener a second time.
@@ -108,12 +114,15 @@ app.whenReady().then(() => {
     moduleServer,
     setAllowModuleDownloads: value => {
       allowModuleDownloads = value;
-    }
+    },
+    nodeRuntime
   });
   menu.install(getWindow);
 
   createWindow();
 });
+
+app.on('before-quit', () => nodeRuntime?.dispose());
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();

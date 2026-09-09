@@ -28,8 +28,13 @@ const register = (getWindow, { app }) => {
   const updater = load();
   if (!updater) return null;
 
-  const notify = (channel, payload) =>
-    getWindow()?.webContents.send(channel, payload);
+  // Update events can arrive while the app is closing, when the window object
+  // still exists but its contents are destroyed.
+  const notify = (channel, payload) => {
+    const window = getWindow();
+    if (!window || window.isDestroyed()) return;
+    window.webContents.send(channel, payload);
+  };
 
   updater.on('update-available', info =>
     notify('update:available', { version: info?.version })

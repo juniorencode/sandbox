@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CommandPalette } from './components/CommandPalette';
+import { ConfirmDialog } from './components/ConfirmDialog';
 import { EditorPanel } from './components/EditorPanel';
 import { OutputPanel } from './components/OutputPanel';
 import { SettingsDialog } from './components/SettingsDialog';
@@ -23,6 +24,7 @@ import { formatCode } from './utilities/format.utilities';
 import { label } from './utilities/shortcut.utilities';
 
 const LANGUAGES = ['javascript', 'jsx', 'typescript', 'tsx'];
+const RUNTIMES = ['browser', 'node'];
 /** Hysteresis so the editor's bottom padding cannot oscillate. */
 const PADDING_TOLERANCE = 8;
 /** Size of the drag handle, on whichever axis the split is on. */
@@ -51,6 +53,7 @@ const App = () => {
   const [panelView, setPanelView] = useState(null);
   const [pendingReveal, setPendingReveal] = useState(null);
   const [appInfo, setAppInfo] = useState(null);
+  const [pendingRuntime, setPendingRuntime] = useState(null);
 
   const runTimerRef = useRef(null);
   const lastRunTabRef = useRef(null);
@@ -59,6 +62,7 @@ const App = () => {
   const recordedRunRef = useRef(null);
 
   const language = activeTab?.language ?? 'javascript';
+  const runtime = activeTab?.runtime ?? 'browser';
   const vertical = settings.layout === 'vertical';
 
   const limits = useMemo(
@@ -97,9 +101,9 @@ const App = () => {
       // Marks the run as deliberate, which history records unconditionally;
       // automatic runs are filtered so a keystroke is not a snapshot.
       explicitRunRef.current = true;
-      run(code ?? activeTab?.code ?? '', { language });
+      run(code ?? activeTab?.code ?? '', { language, runtime });
     },
-    [run, activeTab, language]
+    [run, activeTab, language, runtime]
   );
 
   const toggleAutoRun = useCallback(
@@ -133,6 +137,22 @@ const App = () => {
       updateCode(activeTab.id, result.code);
     }
   }, [activeTab, language, settings.tabSize, editor, updateCode, fileActions]);
+
+  /**
+   * Switching a tab to Node mode is gated once, because it moves the code out
+   * of a sandboxed worker and into a process with the app's own privileges.
+   * The choice is remembered so it is asked for once, not per tab.
+   */
+  const requestRuntime = useCallback(
+    value => {
+      if (value !== 'node' || settings.nodeModeAcknowledged) {
+        workspace.setTabRuntime(activeTabId, value);
+        return;
+      }
+      setPendingRuntime(value);
+    },
+    [activeTabId, settings.nodeModeAcknowledged, workspace]
+  );
 
   const palette = useMemo(
     () => ({
@@ -205,7 +225,7 @@ const App = () => {
       if (runTimerRef.current) clearTimeout(runTimerRef.current);
       runTimerRef.current = setTimeout(() => {
         runTimerRef.current = null;
-        run(code, { language });
+        run(code, { language, runtime });
       }, settings.runDebounceMs);
     },
     [
@@ -214,7 +234,8 @@ const App = () => {
       settings.runDebounceMs,
       run,
       updateCode,
-      language
+      language,
+      runtime
     ]
   );
 
@@ -232,7 +253,10 @@ const App = () => {
     if (!loaded || status === STATUS.STARTING || !activeTab) return;
     if (lastRunTabRef.current === activeTab.id) return;
     lastRunTabRef.current = activeTab.id;
-    run(activeTab.code, { language: activeTab.language ?? 'javascript' });
+    run(activeTab.code, {
+      language: activeTab.language ?? 'javascript',
+      runtime: activeTab.runtime ?? 'browser'
+    });
   }, [loaded, status, activeTab, run]);
 
   /**
@@ -256,7 +280,10 @@ const App = () => {
   useEffect(() => {
     if (transpiler.status !== 'ready' || !activeTab) return;
     if (activeTab.language === 'javascript') return;
-    run(activeTab.code, { language: activeTab.language });
+    run(activeTab.code, {
+      language: activeTab.language,
+      runtime: activeTab.runtime ?? 'browser'
+    });
     // Only when the compiler becomes available; edits are handled elsewhere.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [transpiler.status]);
@@ -478,8 +505,11 @@ const App = () => {
         autoRun={settings.autoRun}
         language={language}
         languages={LANGUAGES}
+        runtime={runtime}
+        runtimes={RUNTIMES}
         transpiler={transpiler}
         onLanguageChange={value => workspace.setTabLanguage(activeTabId, value)}
+        onRuntimeChange={requestRuntime}
         hints={hints}
         onToggleAutoRun={toggleAutoRun}
         onRun={() => runNow()}
@@ -501,6 +531,34 @@ const App = () => {
         onChange={updateSettings}
         onClose={() => setSettingsOpen(false)}
         appInfo={appInfo}
+      />
+
+      <ConfirmDialog
+        open={Boolean(pendingRuntime)}
+        tone="warning"
+        title="Run this tab in Node?"
+        confirmLabel="Enable Node mode"
+        body={
+          <>
+            <p>
+              Node mode evaluates the tab in a real Node process, so
+              <span className="text-neutral-200"> require</span>, the built-in
+              modules and packages installed on disk all work.
+            </p>
+            <p className="mt-2">
+              It also means the code runs with this app&apos;s privileges
+              instead of inside a sandboxed worker: it can read and write your
+              files and reach the network. Only turn it on for code you
+              understand.
+            </p>
+          </>
+        }
+        onCancel={() => setPendingRuntime(null)}
+        onConfirm={() => {
+          updateSettings({ nodeModeAcknowledged: true });
+          workspace.setTabRuntime(activeTabId, pendingRuntime);
+          setPendingRuntime(null);
+        }}
       />
 
       <Toast notice={fileActions.notice} onDismiss={fileActions.dismiss} />

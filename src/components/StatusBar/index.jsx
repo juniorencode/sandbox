@@ -44,8 +44,11 @@ export const StatusBar = ({
   autoRun,
   language,
   languages,
+  runtime,
+  runtimes,
   transpiler,
   onLanguageChange,
+  onRuntimeChange,
   hints = {},
   onToggleAutoRun,
   onRun,
@@ -82,6 +85,28 @@ export const StatusBar = ({
     )}
 
     <div className="ml-auto flex items-center gap-1">
+      {/* Node mode is visually distinct because it is the one setting that
+          changes what the code being run is allowed to do. */}
+      <select
+        className={`rounded bg-transparent px-1 py-0.5 text-[12px] outline-none hover:bg-[#2d3641] ${
+          runtime === 'node' ? 'text-[#e3b341]' : 'text-[#9198A1]'
+        }`}
+        value={runtime}
+        onChange={event => onRuntimeChange(event.target.value)}
+        title={
+          runtime === 'node'
+            ? 'Node mode: real require, built-in modules and installed packages'
+            : 'Browser mode: a sandboxed worker'
+        }
+        aria-label="Runtime for this tab"
+      >
+        {runtimes.map(option => (
+          <option key={option} value={option} className="bg-[#1b212b]">
+            {option}
+          </option>
+        ))}
+      </select>
+
       <select
         className="rounded bg-transparent px-1 py-0.5 text-[12px] text-[#9198A1] outline-none hover:bg-[#2d3641]"
         value={language}
@@ -169,11 +194,14 @@ StatusBar.propTypes = {
   autoRun: PropTypes.bool.isRequired,
   language: PropTypes.string.isRequired,
   languages: PropTypes.arrayOf(PropTypes.string).isRequired,
+  runtime: PropTypes.string.isRequired,
+  runtimes: PropTypes.arrayOf(PropTypes.string).isRequired,
   transpiler: PropTypes.shape({
     status: PropTypes.string,
     message: PropTypes.string
   }),
   onLanguageChange: PropTypes.func.isRequired,
+  onRuntimeChange: PropTypes.func.isRequired,
   hints: PropTypes.objectOf(PropTypes.string),
   onToggleAutoRun: PropTypes.func.isRequired,
   onRun: PropTypes.func.isRequired,

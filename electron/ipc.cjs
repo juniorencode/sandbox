@@ -31,7 +31,7 @@ const failed = error => ({ ok: false, error: String(error?.message || error) });
 
 const register = (
   getWindow,
-  { updates, moduleServer, setAllowModuleDownloads } = {}
+  { updates, moduleServer, setAllowModuleDownloads, nodeRuntime } = {}
 ) => {
   const withWindow = action => (...args) => {
     const win = getWindow();
@@ -174,6 +174,33 @@ const register = (
     chrome: process.versions.chrome,
     userData: app.getPath('userData')
   }));
+
+  // --- node mode ------------------------------------------------------------
+
+  ipcMain.handle('node:start', () =>
+    nodeRuntime ? nodeRuntime.start() : { ok: false, error: 'unavailable' }
+  );
+
+  ipcMain.on('node:send', (_event, message) => nodeRuntime?.send(message));
+
+  ipcMain.handle('node:kill', () =>
+    nodeRuntime ? nodeRuntime.kill() : { ok: true }
+  );
+
+  ipcMain.handle('node:paths', () =>
+    nodeRuntime ? { ok: true, ...nodeRuntime.paths() } : { ok: false }
+  );
+
+  ipcMain.handle('node:revealDir', async () => {
+    if (!nodeRuntime) return { ok: false };
+    const { requireDir } = nodeRuntime.paths();
+    try {
+      await shell.openPath(requireDir);
+      return { ok: true, path: requireDir };
+    } catch (error) {
+      return failed(error);
+    }
+  });
 
   // --- bundled assets -------------------------------------------------------
 
