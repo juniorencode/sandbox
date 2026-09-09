@@ -3,14 +3,7 @@ import { GoPlus } from 'react-icons/go';
 import { IoClose } from 'react-icons/io5';
 import './TabBar.css';
 
-export const TabBar = ({
-  tabs,
-  activeTab,
-  setTabs,
-  setActiveTab,
-  setOutput,
-  executeCode
-}) => {
+export const TabBar = ({ tabs, activeTab, setTabs, setActiveTab }) => {
   const addTab = () => {
     const usedIds = tabs.map(tab => tab.id);
     let newId = 1;
@@ -25,7 +18,6 @@ export const TabBar = ({
 
     setTabs(prevTabs => [...prevTabs, newTab]);
     setActiveTab(newTab.id);
-    setOutput('');
   };
 
   const removeTab = id => {
@@ -37,11 +29,9 @@ export const TabBar = ({
     }
   };
 
-  const switchTab = id => {
-    setActiveTab(id);
-    const code = tabs.find(tab => tab.id === id)?.code || '';
-    executeCode(code);
-  };
+  // Re-running is the runner's job: it reacts to the active tab changing, so
+  // switching no longer has to push code into the worker by hand.
+  const switchTab = id => setActiveTab(id);
 
   // Guarded because `window.api` only exists behind the Electron preload; in
   // `npm run dev` the app runs in a plain browser tab and these are no-ops.
@@ -131,7 +121,5 @@ TabBar.propTypes = {
   ).isRequired,
   activeTab: PropTypes.number.isRequired,
   setTabs: PropTypes.func.isRequired,
-  setActiveTab: PropTypes.func.isRequired,
-  setOutput: PropTypes.func.isRequired,
-  executeCode: PropTypes.func.isRequired
+  setActiveTab: PropTypes.func.isRequired
 };
