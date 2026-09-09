@@ -46,6 +46,8 @@ export default [
       'src/test/**',
       'scripts/**',
       '*.config.js',
+      // The Node-mode runtime is bundled for Node, not the renderer.
+      'src/runtime/node-runner.entry.js',
     ],
     languageOptions: {
       globals: { ...globals.node, ...globals.browser },

@@ -1,18 +1,20 @@
 {
   "name": "sandbox",
   "author": "Carlos Junior Ramos Vásquez",
-  "description": "SandBox is a lightweight and versatile development environment designed to run and test JavaScript code quickly and efficiently. Its minimalist approach and intuitive interface make it an ideal tool for developers looking to experiment with code without complex configurations.",
-  "version": "1.0.0",
+  "description": "Sandbox is a hot-reloading scratchpad for JavaScript and TypeScript. Output is anchored to the line that produced it, values render as inspectable trees, npm packages load from a local cache, and a tab can be evaluated in a real Node process.",
+  "version": "2.0.0",
   "type": "module",
   "main": "./main.cjs",
   "scripts": {
     "dev": "vite",
-    "build-vite": "vite build",
+    "prebuild-vite": "node scripts/copy-wasm.cjs",
+    "build-vite": "vite build && npm run build-runner",
+    "build-runner": "vite build --config vite.node-runner.config.js",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "verify:app": "electron scripts/verify-app.cjs",
+    "verify:app": "node --check scripts/verify-app.cjs && electron scripts/verify-app.cjs",
     "preview": "vite preview",
     "electron": "npm run build-vite && electron .",
     "build": "npm run build-vite && electron-builder"
@@ -21,8 +23,11 @@
     "@monaco-editor/react": "^4.6.0",
     "acorn": "^8.18.0",
     "acorn-walk": "^8.3.5",
+    "electron-updater": "^6.8.9",
+    "esbuild-wasm": "^0.28.2",
     "magic-string": "^1.2.3",
     "monaco-editor": "^0.52.2",
+    "prettier": "^3.9.6",
     "prop-types": "^15.8.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -59,9 +64,17 @@
     },
     "files": [
       "build/**/*",
+      "electron/**/*",
       "main.cjs",
       "preload.cjs",
       "package.json"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "juniorencode",
+        "repo": "sandbox"
+      }
     ],
     "win": {
       "target": "nsis",

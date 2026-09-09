@@ -1,107 +1,159 @@
 import PropTypes from 'prop-types';
+import { useEffect, useRef, useState } from 'react';
 import { GoPlus } from 'react-icons/go';
 import { IoClose } from 'react-icons/io5';
+import { windowControls } from '../../platform';
 import './TabBar.css';
 
-export const TabBar = ({ tabs, activeTab, setTabs, setActiveTab }) => {
-  const addTab = () => {
-    const usedIds = tabs.map(tab => tab.id);
-    let newId = 1;
+/**
+ * The tab strip and window controls.
+ *
+ * Every tab now carries its own close button. Previously only the active tab
+ * rendered one, so closing an inactive tab meant activating it first, and the
+ * inactive tabs still reserved the space where the missing button would have
+ * been. Tabs can also be renamed, which `name` was already stored for but no
+ * UI ever exposed, and reordered.
+ */
+export const TabBar = ({
+  tabs,
+  activeTabId,
+  onSelect,
+  onClose,
+  onCreate,
+  onRename,
+  onMove,
+  newTabHint
+}) => {
+  const [renamingId, setRenamingId] = useState(null);
+  const [draft, setDraft] = useState('');
+  const [dragId, setDragId] = useState(null);
+  const inputRef = useRef(null);
 
-    while (usedIds.includes(newId)) newId++;
+  useEffect(() => {
+    if (renamingId !== null) inputRef.current?.select();
+  }, [renamingId]);
 
-    const newTab = {
-      id: newId,
-      name: `Tab ${newId}`,
-      code: ''
-    };
-
-    setTabs(prevTabs => [...prevTabs, newTab]);
-    setActiveTab(newTab.id);
+  const startRename = tab => {
+    setRenamingId(tab.id);
+    setDraft(tab.name);
   };
 
-  const removeTab = id => {
-    if (tabs.length <= 1) return;
-    const newTabs = tabs.filter(tab => tab.id !== id);
-    setTabs(newTabs);
-    if (activeTab === id) {
-      setActiveTab(newTabs[0].id);
+  const commitRename = () => {
+    if (renamingId !== null) onRename(renamingId, draft);
+    setRenamingId(null);
+  };
+
+  const handleRenameKey = event => {
+    if (event.key === 'Enter') commitRename();
+    if (event.key === 'Escape') setRenamingId(null);
+  };
+
+  // Middle click closes, matching browsers and editors.
+  const handleAuxClick = (event, tab) => {
+    if (event.button === 1) {
+      event.preventDefault();
+      onClose(tab.id);
     }
   };
 
-  // Re-running is the runner's job: it reacts to the active tab changing, so
-  // switching no longer has to push code into the worker by hand.
-  const switchTab = id => setActiveTab(id);
-
-  // Guarded because `window.api` only exists behind the Electron preload; in
-  // `npm run dev` the app runs in a plain browser tab and these are no-ops.
-  const handleClose = () => window.api?.closeWindow();
-  const handleMinimize = () => window.api?.minimizeWindow();
-  const handleMaximize = () => window.api?.maximizeWindow();
+  const handleDrop = (event, tab) => {
+    event.preventDefault();
+    if (dragId === null || dragId === tab.id) return;
+    onMove(
+      dragId,
+      tabs.findIndex(candidate => candidate.id === tab.id)
+    );
+    setDragId(null);
+  };
 
   return (
-    <div className="drag-bar flex gap-1 px-2 select-none bg-[#14181f]">
-      <div className="flex gap-2 items-center justify-center px-1">
+    <div className="drag-bar flex shrink-0 gap-1 px-2 select-none bg-[#14181f]">
+      <div className="flex items-center justify-center gap-2 px-1">
         <button
-          className="w-3 h-3 rounded-full bg-red-500 hover:bg-red-600"
+          className="h-3 w-3 rounded-full bg-red-500 hover:bg-red-600"
           title="Close"
           aria-label="Close window"
-          onClick={handleClose}
+          onClick={windowControls.close}
         ></button>
         <button
-          className="w-3 h-3 rounded-full bg-yellow-500 hover:bg-yellow-600"
+          className="h-3 w-3 rounded-full bg-yellow-500 hover:bg-yellow-600"
           title="Minimize"
           aria-label="Minimize window"
-          onClick={handleMinimize}
+          onClick={windowControls.minimize}
         ></button>
         <button
-          className="w-3 h-3 rounded-full bg-green-500 hover:bg-green-600"
+          className="h-3 w-3 rounded-full bg-green-500 hover:bg-green-600"
           title="Maximize"
           aria-label="Maximize window"
-          onClick={handleMaximize}
+          onClick={windowControls.maximize}
         ></button>
       </div>
+
       <div
-        className="flex items-center justify-center ml-[10px] w-[20px] bg-no-repeat bg-contain bg-center"
-        style={{
-          backgroundImage: `url('favicon.png')`
-        }}
+        className="ml-[10px] flex w-[20px] items-center justify-center bg-contain bg-center bg-no-repeat"
+        style={{ backgroundImage: `url('favicon.png')` }}
       ></div>
-      <div className="flex flex-nowrap px-3 h-[40px] whitespace-nowrap overflow-x-auto scrollbar-hidden overflow-y-hidden text-neutral-600">
-        {tabs.map(tab =>
-          activeTab === tab.id ? (
+
+      <div className="scrollbar-hidden flex h-[40px] flex-nowrap overflow-x-auto overflow-y-hidden whitespace-nowrap px-3 text-neutral-600">
+        {tabs.map(tab => {
+          const active = tab.id === activeTabId;
+          return (
             <div
               key={tab.id}
-              className="indicator group relative flex items-center justify-center gap-2 pl-4 pr-3 rounded-t-[10px] text-neutral-300 bg-[#212830]"
+              className={`tab group relative flex items-center justify-center gap-1 rounded-t-[10px] pl-4 pr-2 transition-colors ${
+                active
+                  ? 'indicator bg-[#212830] text-neutral-300'
+                  : 'hover:bg-[#1b212b] hover:text-neutral-500'
+              } ${dragId === tab.id ? 'opacity-50' : ''}`}
+              draggable={renamingId !== tab.id}
+              onDragStart={() => setDragId(tab.id)}
+              onDragEnd={() => setDragId(null)}
+              onDragOver={event => event.preventDefault()}
+              onDrop={event => handleDrop(event, tab)}
+              onAuxClick={event => handleAuxClick(event, tab)}
             >
-              <div>{tab.name}</div>
+              {renamingId === tab.id ? (
+                <input
+                  ref={inputRef}
+                  className="w-24 bg-transparent text-neutral-100 outline-none"
+                  value={draft}
+                  onChange={event => setDraft(event.target.value)}
+                  onKeyDown={handleRenameKey}
+                  onBlur={commitRename}
+                  aria-label={`Rename ${tab.name}`}
+                />
+              ) : (
+                <button
+                  className="py-1"
+                  onClick={() => onSelect(tab.id)}
+                  onDoubleClick={() => startRename(tab)}
+                  title={tab.path || 'Double-click to rename'}
+                >
+                  {tab.name}
+                  {/* A tab backed by a real file is worth distinguishing from
+                      a scratchpad tab. */}
+                  {tab.path && <span className="ml-1 text-[#6b7280]">·</span>}
+                </button>
+              )}
+
               <button
-                className="flex items-center justify-center mt-0.5 w-4 h-4 rounded-full hover:bg-[#464d5a]"
+                className="flex h-4 w-4 items-center justify-center rounded-full hover:bg-[#464d5a]"
                 title="Close tab"
                 aria-label={`Close ${tab.name}`}
-                onClick={() => removeTab(tab.id)}
+                onClick={() => onClose(tab.id)}
               >
                 <IoClose size={16} />
               </button>
             </div>
-          ) : (
-            <button
-              key={tab.id}
-              className="flex items-center justify-center px-1 rounded-t-lg"
-              onClick={() => switchTab(tab.id)}
-            >
-              <div className="px-3 py-1 pr-7 rounded-t-lg hover:text-neutral-500 hover:bg-[#1b212b] transition-colors">
-                {tab.name}
-              </div>
-            </button>
-          )
-        )}
-        <div className="flex items-center justify-center ml-2">
+          );
+        })}
+
+        <div className="ml-2 flex items-center justify-center">
           <button
-            className="p-0.5 rounded-full hover:bg-neutral-300 transition-colors"
-            title="New tab"
+            className="tab rounded-full p-0.5 transition-colors hover:bg-[#2d3641] hover:text-neutral-300"
+            title={newTabHint ? `New tab (${newTabHint})` : 'New tab'}
             aria-label="New tab"
-            onClick={addTab}
+            onClick={() => onCreate()}
           >
             <GoPlus size={20} />
           </button>
@@ -116,10 +168,15 @@ TabBar.propTypes = {
     PropTypes.shape({
       id: PropTypes.number.isRequired,
       name: PropTypes.string.isRequired,
-      code: PropTypes.string.isRequired
+      code: PropTypes.string.isRequired,
+      path: PropTypes.string
     })
   ).isRequired,
-  activeTab: PropTypes.number.isRequired,
-  setTabs: PropTypes.func.isRequired,
-  setActiveTab: PropTypes.func.isRequired
+  activeTabId: PropTypes.number.isRequired,
+  onSelect: PropTypes.func.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onCreate: PropTypes.func.isRequired,
+  onRename: PropTypes.func.isRequired,
+  onMove: PropTypes.func.isRequired,
+  newTabHint: PropTypes.string
 };

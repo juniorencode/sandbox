@@ -15,7 +15,12 @@
  */
 const path = require('path');
 const fs = require('fs');
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, session } = require('electron');
+const store = require('../electron/store.cjs');
+const ipc = require('../electron/ipc.cjs');
+const security = require('../electron/security.cjs');
+const modules = require('../electron/modules.cjs');
+const { createNodeRuntime } = require('../electron/nodeMode.cjs');
 
 const ROOT = path.join(__dirname, '..');
 const VISIBLE = process.argv.includes('--show');
@@ -64,7 +69,14 @@ const expect = (condition, message) => {
   if (!condition) problems.push(message);
 };
 
+/** Status bar text is multi-line; collapse it for a readable log line. */
+const oneLine = text => String(text ?? '').split(/\r?\n/).join(' | ');
+
 app.commandLine.appendSwitch('disable-gpu');
+
+// Privileged schemes must be declared before the app is ready, exactly as
+// main.cjs does it, or `import()` of the module scheme is rejected.
+modules.registerScheme();
 
 const bail = message => {
   console.error(message);
@@ -77,7 +89,29 @@ process.on('uncaughtException', error =>
   bail('\nFAILED: ' + (error?.stack || error))
 );
 
+let currentWindow = null;
+
 app.whenReady().then(async () => {
+  // This script is its own Electron main process, so it has to register the
+  // same channels main.cjs does or the renderer's workspace read has nothing
+  // to talk to.
+
+  // The same policy main.cjs installs. A Content Security Policy that is too
+  // strict only breaks in a packaged build, so it has to be part of what is
+  // being verified rather than something the harness relaxes.
+  security.apply(session.defaultSession);
+
+  const moduleServer = modules.createModuleServer(app.getPath('userData'), {
+    allow: () => true
+  });
+  moduleServer.install();
+
+  const nodeRuntime = createNodeRuntime(() => currentWindow, {
+    userData: app.getPath('userData')
+  });
+
+  ipc.register(() => currentWindow, { moduleServer, nodeRuntime });
+
   const indexFile = path.join(ROOT, 'build', 'index.html');
   if (!fs.existsSync(indexFile)) {
     bail('No build found. Run `npm run build-vite` first.');
@@ -91,9 +125,34 @@ app.whenReady().then(async () => {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
+      // Mirrors main.cjs: the renderer ships sandboxed.
+      sandbox: true,
       preload: path.join(ROOT, 'preload.cjs')
     }
   });
+
+  security.guardNavigation(win.webContents);
+
+  // Temporary diagnostic: logs what the main process actually sends the
+  // renderer on the node channel.
+  if (process.argv.includes('--trace-node')) {
+    const originalSend = win.webContents.send.bind(win.webContents);
+    win.webContents.send = (channel, payload) => {
+      if (channel === 'node:message') {
+        const text =
+          payload?.t === 'node-stdio'
+            ? payload.stream + ': ' + payload.text.trim()
+            : JSON.stringify(payload).slice(0, 300);
+        console.log('  <node ipc>', text);
+      }
+      return originalSend(channel, payload);
+    };
+  }
+
+  currentWindow = win;
+
+  // Declared once: both the initial reset and the module phase clear these.
+  const { file: workspaceFile, backup: workspaceBackup } = store.paths();
 
   /**
    * The whole point of bundling Monaco was that the editor must not depend on
@@ -118,6 +177,11 @@ app.whenReady().then(async () => {
     if (level === 3 && !message.includes('Electron Security Warning')) {
       problems.push('renderer console error: ' + message);
     }
+    // A blocked resource is reported as a warning, not an error, so it has to
+    // be matched explicitly or a too-strict policy passes unnoticed.
+    if (/Content Security Policy|Refused to/i.test(message)) {
+      problems.push('CSP blocked something: ' + message);
+    }
   });
   win.webContents.on('render-process-gone', (_event, details) =>
     problems.push('renderer gone: ' + JSON.stringify(details))
@@ -130,7 +194,16 @@ app.whenReady().then(async () => {
   await sleep(2500);
 
   // Start from a known workspace rather than whatever was last persisted.
+  // The workspace is a file now, so clearing localStorage is not enough; the
+  // 1.x keys are cleared too so the migration path does not repopulate it.
   await win.webContents.executeJavaScript('localStorage.clear(); true');
+  for (const target of [workspaceFile, workspaceBackup]) {
+    try {
+      if (fs.existsSync(target)) fs.unlinkSync(target);
+    } catch {
+      /* a leftover workspace only makes the assertions stricter */
+    }
+  }
   await win.webContents.reload();
   await sleep(2500);
 
@@ -174,6 +247,176 @@ app.whenReady().then(async () => {
     `expected a settled status bar, got: ${JSON.stringify(ran.status)}`
   );
 
+  /**
+   * Module loading, which the previous engine could not do at all.
+   *
+   * Runs in both modes on purpose: offline is where the design has to prove
+   * itself, since serving modules over a private scheme from a disk cache is
+   * only worth the machinery if a package used once keeps working with no
+   * network. It is skipped only when there is neither a cache nor a network.
+   */
+  const cache = moduleServer.stats();
+  if (ONLINE || cache.count > 0) {
+    await win.webContents.executeJavaScript('localStorage.clear(); true');
+    for (const target of [workspaceFile, workspaceBackup]) {
+      try {
+        if (fs.existsSync(target)) fs.unlinkSync(target);
+      } catch {
+        /* nothing to clean */
+      }
+    }
+    await win.webContents.reload();
+    await sleep(2500);
+
+    win.webContents.focus();
+    win.webContents.sendInputEvent({ type: 'mouseDown', x: 300, y: 200, button: 'left', clickCount: 1 });
+    win.webContents.sendInputEvent({ type: 'mouseUp', x: 300, y: 200, button: 'left', clickCount: 1 });
+    await sleep(300);
+
+    await typeText(win, "import { nanoid } from 'nanoid'");
+    pressEnter(win);
+    await typeText(win, 'console.log(typeof nanoid(), nanoid().length)');
+    // The first run has to reach the registry, so this waits longer.
+    await sleep(9000);
+
+    const imported = await readState(win);
+    console.log(
+      'import :',
+      JSON.stringify(imported.output),
+      ONLINE ? '(network allowed)' : `(offline, ${cache.count} cached files)`
+    );
+    expect(
+      imported.output.includes('string') && imported.output.includes('21'),
+      `an npm import did not produce a value: ${JSON.stringify(imported.output)}`
+    );
+  } else {
+    console.log('import : skipped (no cached packages and no network)');
+  }
+
+  /**
+   * TypeScript, which the previous engine could not run at all: a type
+   * annotation was a syntax error from the evaluator with no explanation.
+   *
+   * The compiler is loaded on demand, so this also covers the lazy wasm
+   * handover, and the assertion on the reported line covers the source map
+   * mapping: without it a console call would be reported against the
+   * generated text rather than what was typed.
+   */
+  await win.webContents.executeJavaScript('localStorage.clear(); true');
+  for (const target of [workspaceFile, workspaceBackup]) {
+    try {
+      if (fs.existsSync(target)) fs.unlinkSync(target);
+    } catch {
+      /* nothing to clean */
+    }
+  }
+  await win.webContents.reload();
+  await sleep(2500);
+
+  const switched = await win.webContents.executeJavaScript(`
+    (() => {
+      const select = document.querySelector(
+        'select[aria-label="Language for this tab"]'
+      );
+      if (!select) return false;
+      select.value = 'typescript';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      return select.value;
+    })()
+  `);
+  if (switched !== 'typescript') {
+    problems.push(`the language selector did not switch: ${switched}`);
+  }
+
+  await sleep(500);
+  win.webContents.focus();
+  win.webContents.sendInputEvent({ type: 'mouseDown', x: 300, y: 200, button: 'left', clickCount: 1 });
+  win.webContents.sendInputEvent({ type: 'mouseUp', x: 300, y: 200, button: 'left', clickCount: 1 });
+  await sleep(300);
+
+  await typeText(win, 'interface P { x: number }');
+  pressEnter(win);
+  await typeText(win, 'const p: P = { x: 41 }');
+  pressEnter(win);
+  await typeText(win, 'console.log(p.x + 1)');
+  // The 14 MB compiler is fetched and initialised on demand.
+  await sleep(9000);
+
+  const typescript = await readState(win);
+  console.log('ts     :', JSON.stringify(typescript.output));
+  expect(
+    typescript.output.includes('42'),
+    `typescript did not run: ${JSON.stringify(typescript.output)}`
+  );
+
+
+  /**
+   * Node mode: the one thing a browser tab cannot do, and the reason the app
+   * stays on Electron. Also covers the confirmation gate, since switching a
+   * tab into Node mode moves it out of the sandbox.
+   */
+  await win.webContents.executeJavaScript('localStorage.clear(); true');
+  for (const target of [workspaceFile, workspaceBackup]) {
+    try {
+      if (fs.existsSync(target)) fs.unlinkSync(target);
+    } catch {
+      /* nothing to clean */
+    }
+  }
+  await win.webContents.reload();
+  await sleep(2500);
+
+  const gated = await win.webContents.executeJavaScript(`
+    (() => {
+      const runtime = document.querySelector(
+        'select[aria-label="Runtime for this tab"]'
+      );
+      if (!runtime) return 'no-select';
+      runtime.value = 'node';
+      runtime.dispatchEvent(new Event('change', { bubbles: true }));
+      return 'switched';
+    })()
+  `);
+  if (gated !== 'switched') problems.push('the runtime selector was not found');
+
+  await sleep(400);
+  const confirmed = await win.webContents.executeJavaScript(`
+    (() => {
+      const button = [...document.querySelectorAll('button')].find(
+        node => node.textContent.trim() === 'Enable Node mode'
+      );
+      if (!button) return false;
+      button.click();
+      return true;
+    })()
+  `);
+  if (!confirmed) {
+    problems.push('the Node mode confirmation did not appear');
+  }
+
+  await sleep(600);
+  win.webContents.focus();
+  win.webContents.sendInputEvent({ type: 'mouseDown', x: 300, y: 200, button: 'left', clickCount: 1 });
+  win.webContents.sendInputEvent({ type: 'mouseUp', x: 300, y: 200, button: 'left', clickCount: 1 });
+  await sleep(300);
+
+  await typeText(win, 'const os = require("os")');
+  pressEnter(win);
+  await typeText(win, 'console.log(typeof os.platform(), typeof process.pid)');
+  await sleep(5000);
+
+  const nodeRun = await readState(win);
+  const activeRuntime = await win.webContents.executeJavaScript(
+    `(document.querySelector('select[aria-label="Runtime for this tab"]') || {}).value || '?'`
+  );
+  console.log('node   :', JSON.stringify(nodeRun.output), '| runtime =', activeRuntime);
+  console.log('  status:', JSON.stringify(oneLine(nodeRun.status)));
+  console.log('  editor:', JSON.stringify(nodeRun.editor.slice(0, 120)));
+  expect(
+    nodeRun.output.includes('string') && nodeRun.output.includes('number'),
+    `node mode did not run: ${JSON.stringify(nodeRun.output)}`
+  );
+
   if (SHOT) {
     const image = await win.webContents.capturePage();
     const target = path.join(ROOT, 'build', 'verify-app.png');
@@ -188,5 +431,6 @@ app.whenReady().then(async () => {
     console.log('\nOK');
   }
 
+  nodeRuntime.dispose();
   app.exit(problems.length ? 1 : 0);
 });

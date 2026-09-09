@@ -1,6 +1,9 @@
 import { Parser } from 'acorn';
 import * as walk from 'acorn-walk';
-import MagicString from 'magic-string';
+// Named rather than default: bundling this module to CJS for the Node-mode
+// runtime makes the interop resolve the default to the namespace object, and
+// `new MagicString(...)` then fails with "not a constructor".
+import { MagicString } from 'magic-string';
 
 /**
  * Source-to-source transform applied before the code is evaluated.
@@ -170,23 +173,34 @@ const importReplacement = node => {
 };
 
 /**
+ * @param source the code to transform
+ * @param options.mapper maps a position in `source` back to the position the
+ *   user wrote, for sources that have already been through a transpiler. JSX
+ *   in particular does not preserve line positions, so without this a console
+ *   call in a .tsx tab would be reported against the generated text.
  * @returns {{ code: string, located: boolean, error: null |
  *   { message: string, line: number, column: number } }}
  */
-export const instrument = source => {
+export const instrument = (source, { mapper } = {}) => {
   if (!source.trim()) return { code: source, located: false, error: null };
+
+  const locateOriginal = (line, column) => {
+    if (!mapper) return { line, column };
+    return mapper.lookup(line, column) ?? { line, column };
+  };
 
   let ast;
   try {
     ast = Parser.parse(source, PARSE_OPTIONS);
   } catch (error) {
+    const at = locateOriginal(error.loc?.line ?? 1, (error.loc?.column ?? 0) + 1);
     return {
       code: source,
       located: false,
       error: {
         message: error.message?.replace(/\s*\(\d+:\d+\)\s*$/, '') || 'Syntax error',
-        line: error.loc?.line ?? 1,
-        column: (error.loc?.column ?? 0) + 1
+        line: at.line,
+        column: at.column
       }
     };
   }
@@ -201,11 +215,14 @@ export const instrument = source => {
         if (!locate) break;
         const receiver = consoleReceiver(node);
         if (!receiver) break;
-        const { line, column } = node.loc.start;
+        const original = locateOriginal(
+          node.loc.start.line,
+          node.loc.start.column + 1
+        );
         out.overwrite(
           receiver.start,
           receiver.end,
-          `__sbx.at(${line},${column + 1})`
+          `__sbx.at(${original.line},${original.column})`
         );
         located = true;
         break;

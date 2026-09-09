@@ -13,6 +13,7 @@
 export const RUN = 'run';
 export const CANCEL = 'cancel';
 export const EXPAND = 'expand';
+export const INIT = 'init';
 
 // worker -> main
 export const READY = 'ready';

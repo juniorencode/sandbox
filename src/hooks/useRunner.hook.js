@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { node } from '../platform';
 import {
   RUN,
   CANCEL,
   EXPAND,
+  INIT,
   READY,
   LOG,
   GROUP,
@@ -52,6 +54,7 @@ export const useRunner = ({
   enabled = true
 } = {}) => {
   const [entries, setEntries] = useState([]);
+  const [transpiler, setTranspiler] = useState({ status: 'idle' });
   const [status, setStatus] = useState(STATUS.STARTING);
   const [duration, setDuration] = useState(null);
   const [overflowed, setOverflowed] = useState(false);
@@ -63,6 +66,7 @@ export const useRunner = ({
   const pendingRef = useRef([]);
   const frameRef = useRef(null);
   const expandWaitersRef = useRef(new Map());
+  const activeRuntimeRef = useRef('browser');
 
   // Streaming one setState per message would re-render once per console call;
   // a loop logging a thousand times would render a thousand times. Messages
@@ -108,17 +112,54 @@ export const useRunner = ({
     }
   }, []);
 
-  const spawn = useCallback(() => {
-    const worker = new Worker(
-      new URL('../runtime/runner.worker.js', import.meta.url),
-      { type: 'module' }
-    );
-
-    worker.onmessage = event => {
-      const message = event.data;
+  /**
+   * One handler for both transports.
+   *
+   * The browser worker and the Node process speak the same protocol, so the
+   * only difference between them is how a message arrives.
+   */
+  const handleMessage = useCallback(
+    message => {
       if (!message) return;
 
+      if (message.t === 'node-stdio') {
+        // Writing to stdout is a normal thing to do in Node and would
+        // otherwise have nowhere to go. Marked as unlocated, since a stream
+        // write has no call site.
+        schedule({
+          t: LOG,
+          entryId: nextEntryId++,
+          runId: runIdRef.current,
+          level: message.stream === 'stderr' ? 'error' : 'log',
+          line: null,
+          column: null,
+          group: 0,
+          values: [{ t: 'string', v: message.text.trimEnd() }],
+          late: settledRef.current
+        });
+        return;
+      }
+
+      if (message.t === 'node-exit') {
+        // The Node process died rather than being replaced, so nothing is
+        // going to answer the run that was in flight.
+        clearWatchdog();
+        settledRef.current = true;
+        setStatus(STATUS.IDLE);
+        return;
+      }
+
       if (message.t === READY) {
+        // The same message reports the worker booting, the TypeScript
+        // compiler finishing, and the Node runtime coming up.
+        if (message.transpiler !== undefined) {
+          setTranspiler(
+            message.transpiler
+              ? { status: 'ready' }
+              : { status: 'error', message: message.error }
+          );
+          return;
+        }
         setStatus(current =>
           current === STATUS.STARTING ? STATUS.IDLE : current
         );
@@ -165,11 +206,34 @@ export const useRunner = ({
         default:
           break;
       }
-    };
+    },
+    [clearWatchdog, schedule]
+  );
 
+  const spawn = useCallback(() => {
+    const worker = new Worker(
+      new URL('../runtime/runner.worker.js', import.meta.url),
+      { type: 'module' }
+    );
+    worker.onmessage = event => handleMessage(event.data);
     workerRef.current = worker;
     return worker;
-  }, [clearWatchdog, schedule]);
+  }, [handleMessage]);
+
+  /** Messages from the Node runtime arrive over IPC rather than a port. */
+  useEffect(() => node.onMessage(handleMessage), [handleMessage]);
+
+  /** Routes a message to whichever runtime the current run belongs to. */
+  const send = useCallback((message, runtime) => {
+    if (runtime === 'node') {
+      node.send(message);
+      return true;
+    }
+    const worker = workerRef.current;
+    if (!worker) return false;
+    worker.postMessage(message);
+    return true;
+  }, []);
 
   useEffect(() => {
     if (!enabled) return undefined;
@@ -194,21 +258,38 @@ export const useRunner = ({
   const kill = useCallback(
     reason => {
       clearWatchdog();
-      const worker = workerRef.current;
-      if (worker) worker.terminate();
+      if (activeRuntimeRef.current === 'node') {
+        // Killing the process is the only way to stop synchronous code there
+        // too; the next run starts a fresh one.
+        node.kill();
+      } else {
+        const worker = workerRef.current;
+        if (worker) worker.terminate();
+        spawn();
+      }
       expandWaitersRef.current.clear();
       pendingRef.current = [];
       settledRef.current = true;
       setStatus(reason === PHASE_TIMEOUT ? STATUS.TIMEOUT : STATUS.IDLE);
-      spawn();
     },
     [clearWatchdog, spawn]
   );
 
+  /**
+   * Hands the compiler its wasm binary. Lazy on purpose: a workspace that
+   * only runs JavaScript never pays the cost of loading it.
+   */
+  const initTranspiler = useCallback(wasm => {
+    const worker = workerRef.current;
+    if (!worker) return;
+    setTranspiler({ status: 'loading' });
+    worker.postMessage({ t: INIT, wasm }, [wasm.buffer].filter(Boolean));
+  }, []);
+
   const run = useCallback(
-    code => {
-      const worker = workerRef.current;
-      if (!worker) return;
+    (code, { language = 'javascript', runtime = 'browser' } = {}) => {
+      if (runtime !== 'node' && !workerRef.current) return;
+      activeRuntimeRef.current = runtime;
 
       const runId = runIdRef.current + 1;
       runIdRef.current = runId;
@@ -227,7 +308,7 @@ export const useRunner = ({
       }
 
       setStatus(STATUS.RUNNING);
-      worker.postMessage({ t: RUN, runId, code, options: { limits } });
+      send({ t: RUN, runId, code, options: { limits, language } }, runtime);
 
       watchdogRef.current = setTimeout(() => {
         watchdogRef.current = null;
@@ -246,14 +327,13 @@ export const useRunner = ({
         kill(PHASE_TIMEOUT);
       }, timeoutMs);
     },
-    [clearWatchdog, kill, limits, timeoutMs]
+    [clearWatchdog, kill, limits, timeoutMs, send]
   );
 
   const stop = useCallback(() => {
-    const worker = workerRef.current;
-    if (worker) worker.postMessage({ t: CANCEL, runId: runIdRef.current });
+    send({ t: CANCEL, runId: runIdRef.current }, activeRuntimeRef.current);
     kill('stopped');
-  }, [kill]);
+  }, [kill, send]);
 
   const clear = useCallback(() => {
     pendingRef.current = [];
@@ -263,27 +343,27 @@ export const useRunner = ({
 
   /** Asks the worker for one more level of a node that hit a budget. */
   const expand = useCallback(id => {
-    const worker = workerRef.current;
-    if (!worker) return Promise.resolve(null);
     return new Promise(resolve => {
       expandWaitersRef.current.set(id, resolve);
-      worker.postMessage({ t: EXPAND, runId: runIdRef.current, id });
+      send({ t: EXPAND, runId: runIdRef.current, id }, activeRuntimeRef.current);
       // The worker may have been replaced mid-flight; do not hang the caller.
       setTimeout(() => {
         if (expandWaitersRef.current.delete(id)) resolve(null);
       }, 1000);
     });
-  }, []);
+  }, [send]);
 
   return {
     entries,
     status,
     duration,
     overflowed,
+    transpiler,
     running: status === STATUS.RUNNING,
     run,
     stop,
     clear,
-    expand
+    expand,
+    initTranspiler
   };
 };

@@ -19,6 +19,17 @@ import { githubDarkTheme } from '../../utilities/theme.utilities';
 
 const MARKER_OWNER = 'sandbox-runner';
 
+/**
+ * Monaco only has `javascript` and `typescript`; the JSX variants are the same
+ * language with JSX parsing enabled, which is configured below.
+ */
+const MONACO_LANGUAGE = {
+  javascript: 'javascript',
+  jsx: 'javascript',
+  typescript: 'typescript',
+  tsx: 'typescript'
+};
+
 export const EditorPanel = ({
   value,
   language,
@@ -26,7 +37,10 @@ export const EditorPanel = ({
   onEditorReady,
   markers,
   extraBottomPadding,
-  width
+  fontSize,
+  tabSize,
+  wordWrap,
+  style
 }) => {
   const editorRef = useRef(null);
 
@@ -37,12 +51,27 @@ export const EditorPanel = ({
 
   const handleBeforeMount = instance => {
     instance.editor.defineTheme('github-dark-theme', githubDarkTheme);
+
     // The editor is a scratchpad, not a project: unresolved imports and
     // implicit globals are normal here and should not be underlined.
-    instance.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+    const diagnostics = {
       noSemanticValidation: true,
       noSyntaxValidation: false
-    });
+    };
+    const compiler = {
+      target: instance.languages.typescript.ScriptTarget.ESNext,
+      module: instance.languages.typescript.ModuleKind.ESNext,
+      jsx: instance.languages.typescript.JsxEmit.ReactJSX,
+      allowNonTsExtensions: true,
+      allowJs: true
+    };
+
+    const { javascriptDefaults, typescriptDefaults } =
+      instance.languages.typescript;
+    javascriptDefaults.setDiagnosticsOptions(diagnostics);
+    javascriptDefaults.setCompilerOptions(compiler);
+    typescriptDefaults.setDiagnosticsOptions(diagnostics);
+    typescriptDefaults.setCompilerOptions(compiler);
   };
 
   /**
@@ -83,10 +112,10 @@ export const EditorPanel = ({
   }, [extraBottomPadding]);
 
   return (
-    <div className="h-full min-w-0" style={{ width }}>
+    <div className="min-h-0 min-w-0" style={style}>
       <Editor
         theme="github-dark-theme"
-        language={language}
+        language={MONACO_LANGUAGE[language] ?? 'javascript'}
         value={value}
         options={{
           minimap: { enabled: false },
@@ -95,6 +124,9 @@ export const EditorPanel = ({
           smoothScrolling: true,
           fixedOverflowWidgets: true,
           renderLineHighlight: 'line',
+          fontSize,
+          tabSize,
+          wordWrap: wordWrap ? 'on' : 'off',
           scrollbar: { verticalScrollbarSize: 12, useShadows: false }
         }}
         onChange={onChange}
@@ -118,5 +150,8 @@ EditorPanel.propTypes = {
     })
   ).isRequired,
   extraBottomPadding: PropTypes.number.isRequired,
-  width: PropTypes.string.isRequired
+  fontSize: PropTypes.number.isRequired,
+  tabSize: PropTypes.number.isRequired,
+  wordWrap: PropTypes.bool.isRequired,
+  style: PropTypes.object.isRequired
 };

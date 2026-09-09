@@ -1,60 +1,133 @@
 const path = require('path');
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, screen } = require('electron');
+const ipc = require('./electron/ipc.cjs');
+const modules = require('./electron/modules.cjs');
+const { createNodeRuntime } = require('./electron/nodeMode.cjs');
+const menu = require('./electron/menu.cjs');
+const security = require('./electron/security.cjs');
+const updater = require('./electron/updater.cjs');
+const { createWindowState } = require('./electron/windowState.cjs');
 
-let mainWindow;
+let mainWindow = null;
+let windowState = null;
+let updates = null;
+let moduleServer = null;
+let nodeRuntime = null;
+
+/**
+ * Privileged schemes have to be declared before the app is ready, otherwise
+ * `import()` of the module scheme is rejected as insecure.
+ */
+modules.registerScheme();
+
+const getWindow = () => mainWindow;
+
+/**
+ * Whether a package that is not cached yet may be downloaded. Mirrored from
+ * the renderer's settings so the module handler can answer without asking.
+ */
+let allowModuleDownloads = true;
+
+/**
+ * A second launch focuses the window that is already open instead of starting
+ * another copy, which would have two processes writing the same workspace file.
+ */
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (!mainWindow) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  });
+}
 
 const createWindow = () => {
+  const bounds = windowState.initial(screen.getAllDisplays());
+
   mainWindow = new BrowserWindow({
+    ...bounds,
     frame: false,
-    // `show: false` + the `ready-to-show` handler below avoid the white flash
-    // that a frameless window paints before the renderer has anything to draw.
+    // Created hidden and shown on ready-to-show, which removes the white flash
+    // a frameless window paints before the renderer has anything to draw.
     show: false,
+    backgroundColor: '#212830',
+    minWidth: 640,
+    minHeight: 400,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
+      // The preload only needs `electron`, which a sandboxed preload can still
+      // require, so the renderer process itself can be sandboxed.
+      sandbox: true,
       preload: path.join(__dirname, 'preload.cjs')
     }
   });
 
+  security.guardNavigation(mainWindow.webContents);
+
   mainWindow.loadFile(path.join(__dirname, 'build', 'index.html'));
 
   mainWindow.once('ready-to-show', () => {
-    mainWindow.maximize();
+    if (bounds.maximized) mainWindow.maximize();
     mainWindow.show();
+    // Checked quietly: a repository with no releases yet answers with a 404,
+    // which is not something to greet the user with.
+    updates?.check({ silent: true });
   });
 
+  const remember = () => windowState.save(mainWindow);
+  mainWindow.on('resize', remember);
+  mainWindow.on('move', remember);
+  mainWindow.on('maximize', remember);
+  mainWindow.on('unmaximize', remember);
+
+  mainWindow.on('close', remember);
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
 };
 
-// Registered once for the lifetime of the process. Calling this from inside
-// createWindow duplicated every handler whenever the window was recreated, so
-// a single click on close fired the IPC twice.
-const setupIPC = () => {
-  ipcMain.on('close-window', () => mainWindow?.close());
-  ipcMain.on('minimize-window', () => mainWindow?.minimize());
-  ipcMain.on('maximize-window', () => {
-    if (!mainWindow) return;
-    if (mainWindow.isMaximized()) {
-      mainWindow.restore();
-    } else {
-      mainWindow.maximize();
-    }
-  });
-};
-
 app.whenReady().then(() => {
-  setupIPC();
+  windowState = createWindowState(app.getPath('userData'), {
+    defaultWidth: 1400,
+    defaultHeight: 900
+  });
+
+  security.apply(require('electron').session.defaultSession);
+  updates = updater.register(getWindow, { app });
+
+  moduleServer = modules.createModuleServer(app.getPath('userData'), {
+    allow: () => allowModuleDownloads
+  });
+  moduleServer.install();
+
+  nodeRuntime = createNodeRuntime(getWindow, {
+    userData: app.getPath('userData')
+  });
+
+  // Registered once for the lifetime of the process, against a getter rather
+  // than a captured window: doing this inside createWindow meant recreating
+  // the window registered every listener a second time.
+  ipc.register(getWindow, {
+    updates,
+    moduleServer,
+    setAllowModuleDownloads: value => {
+      allowModuleDownloads = value;
+    },
+    nodeRuntime
+  });
+  menu.install(getWindow);
+
   createWindow();
 });
+
+app.on('before-quit', () => nodeRuntime?.dispose());
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
 app.on('activate', () => {
-  if (mainWindow === null) {
-    createWindow();
-  }
+  if (mainWindow === null) createWindow();
 });
