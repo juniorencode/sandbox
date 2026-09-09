@@ -10,12 +10,13 @@
     "build-vite": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "electron": "npm run build-vite &&  electron .",
+    "electron": "npm run build-vite && electron .",
     "build": "npm run build-vite && electron-builder"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",
     "monaco-editor": "^0.52.2",
+    "prop-types": "^15.8.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-icons": "^5.4.0"
@@ -36,10 +37,6 @@
     "postcss": "^8.5.1",
     "tailwindcss": "^3.4.17",
     "vite": "^6.0.5"
-  },
-  "webPreferences": {
-    "contextIsolation": true,
-    "nodeIntegration": false
   },
   "build": {
     "appId": "com.juniorencode.sandbox",

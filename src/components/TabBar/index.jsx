@@ -1,5 +1,4 @@
 import PropTypes from 'prop-types';
-import { useEffect } from 'react';
 import { GoPlus } from 'react-icons/go';
 import { IoClose } from 'react-icons/io5';
 import './TabBar.css';
@@ -12,15 +11,6 @@ export const TabBar = ({
   setOutput,
   executeCode
 }) => {
-  useEffect(() => {
-    const dragBar = document.querySelector('.drag-bar');
-    if (dragBar && window.api) {
-      dragBar.addEventListener('mousedown', () => {
-        window.api.enableDrag();
-      });
-    }
-  }, []);
-
   const addTab = () => {
     const usedIds = tabs.map(tab => tab.id);
     let newId = 1;
@@ -53,30 +43,32 @@ export const TabBar = ({
     executeCode(code);
   };
 
-  const handleClose = () => {
-    window.api.closeWindow();
-  };
-  const handleMinimize = () => {
-    window.api.minimizeWindow();
-  };
-  const handleMaximize = () => {
-    window.api.maximizeWindow();
-  };
+  // Guarded because `window.api` only exists behind the Electron preload; in
+  // `npm run dev` the app runs in a plain browser tab and these are no-ops.
+  const handleClose = () => window.api?.closeWindow();
+  const handleMinimize = () => window.api?.minimizeWindow();
+  const handleMaximize = () => window.api?.maximizeWindow();
 
   return (
     <div className="drag-bar flex gap-1 px-2 select-none bg-[#14181f]">
       <div className="flex gap-2 items-center justify-center px-1">
         <button
           className="w-3 h-3 rounded-full bg-red-500 hover:bg-red-600"
+          title="Close"
+          aria-label="Close window"
           onClick={handleClose}
         ></button>
         <button
           className="w-3 h-3 rounded-full bg-yellow-500 hover:bg-yellow-600"
-          onClick={handleMaximize}
+          title="Minimize"
+          aria-label="Minimize window"
+          onClick={handleMinimize}
         ></button>
         <button
           className="w-3 h-3 rounded-full bg-green-500 hover:bg-green-600"
-          onClick={handleMinimize}
+          title="Maximize"
+          aria-label="Maximize window"
+          onClick={handleMaximize}
         ></button>
       </div>
       <div
@@ -95,6 +87,8 @@ export const TabBar = ({
               <div>{tab.name}</div>
               <button
                 className="flex items-center justify-center mt-0.5 w-4 h-4 rounded-full hover:bg-[#464d5a]"
+                title="Close tab"
+                aria-label={`Close ${tab.name}`}
                 onClick={() => removeTab(tab.id)}
               >
                 <IoClose size={16} />
@@ -115,6 +109,8 @@ export const TabBar = ({
         <div className="flex items-center justify-center ml-2">
           <button
             className="p-0.5 rounded-full hover:bg-neutral-300 transition-colors"
+            title="New tab"
+            aria-label="New tab"
             onClick={addTab}
           >
             <GoPlus size={20} />
