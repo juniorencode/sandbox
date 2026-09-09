@@ -22,9 +22,19 @@ const PERSIST_DEBOUNCE_MS = 400;
 
 export const DEFAULT_SETTINGS = {
   editorSeparator: 60,
+  layout: 'horizontal',
   autoRun: true,
+  // Previously hardcoded in App; once code makes requests, being able to
+  // lengthen or disable this matters.
+  runDebounceMs: 200,
   timeoutMs: 5000,
-  language: 'javascript',
+  fontSize: 14,
+  tabSize: 2,
+  wordWrap: false,
+  // Serialisation budget, surfaced because a deep object is exactly when the
+  // default stops being enough.
+  maxDepth: 5,
+  maxItems: 100,
   // Whether a package that is not cached yet may be downloaded. Cached
   // packages always load, so turning this off does not break existing code.
   allowModuleDownloads: true

@@ -12,6 +12,7 @@ export const useCommands = ({
   runner,
   workspace,
   fileActions,
+  editorActions,
   palette,
   settings,
   updates
@@ -130,10 +131,32 @@ export const useCommands = ({
         run: fileActions.showWorkspaceFolder
       },
       {
+        id: 'editor.format',
+        title: 'Format document',
+        group: 'Editor',
+        shortcut: 'Alt+Shift+F',
+        run: editorActions.format
+      },
+      {
+        id: 'settings.open',
+        title: 'Settings',
+        group: 'General',
+        shortcut: 'Mod+,',
+        run: editorActions.openSettings
+      },
+      {
         id: 'app.checkUpdates',
         title: 'Check for updates',
         group: 'General',
         run: updates.check
       }
     ];
-  }, [runner, workspace, fileActions, palette, settings.autoRun, updates]);
+  }, [
+    runner,
+    workspace,
+    fileActions,
+    editorActions,
+    palette,
+    settings.autoRun,
+    updates
+  ]);

@@ -63,7 +63,13 @@ const build = getWindow => {
         { role: 'cut' },
         { role: 'copy' },
         { role: 'paste' },
-        { role: 'selectAll' }
+        { role: 'selectAll' },
+        { type: 'separator' },
+        {
+          label: 'Format Document',
+          accelerator: 'Alt+Shift+F',
+          click: command('editor.format')
+        }
       ]
     },
     {
@@ -95,6 +101,11 @@ const build = getWindow => {
           label: 'Command Palette…',
           accelerator: 'CmdOrCtrl+Shift+P',
           click: command('palette.open')
+        },
+        {
+          label: 'Settings…',
+          accelerator: 'CmdOrCtrl+,',
+          click: command('settings.open')
         },
         { type: 'separator' },
         { role: 'reload' },
