@@ -15,11 +15,12 @@
  */
 const path = require('path');
 const fs = require('fs');
-const { app, BrowserWindow, session } = require('electron');
+const { app, BrowserWindow, clipboard, session } = require('electron');
 const store = require('../electron/store.cjs');
 const ipc = require('../electron/ipc.cjs');
 const security = require('../electron/security.cjs');
 const modules = require('../electron/modules.cjs');
+const menu = require('../electron/menu.cjs');
 const { createNodeRuntime } = require('../electron/nodeMode.cjs');
 
 const ROOT = path.join(__dirname, '..');
@@ -72,6 +73,16 @@ const expect = (condition, message) => {
 /** Status bar text is multi-line; collapse it for a readable log line. */
 const oneLine = text => String(text ?? '').split(/\r?\n/).join(' | ');
 
+/**
+ * Monaco renders some spaces as non-breaking spaces, so text read out of its
+ * DOM does not compare equal to the source it was typed from. Assertions on
+ * editor text go through this.
+ */
+const normalize = text =>
+  String(text ?? '')
+    .replace(/ /g, ' ')
+    .replace(/[ \t]+/g, ' ');
+
 app.commandLine.appendSwitch('disable-gpu');
 
 // Privileged schemes must be declared before the app is ready, exactly as
@@ -111,6 +122,7 @@ app.whenReady().then(async () => {
   });
 
   ipc.register(() => currentWindow, { moduleServer, nodeRuntime });
+  menu.install(() => currentWindow);
 
   const indexFile = path.join(ROOT, 'build', 'index.html');
   if (!fs.existsSync(indexFile)) {
@@ -551,6 +563,100 @@ app.whenReady().then(async () => {
   expect(
     asLight.scheme === 'light',
     `color-scheme was not applied: ${asLight.scheme}`
+  );
+
+
+  /**
+   * Sharing. There was no way to get a snippet out of the app, and no way
+   * back in. A link would be the obvious shape but nothing hosts this editor,
+   * so what has to work is a token that round-trips through the clipboard.
+   */
+  await win.webContents.executeJavaScript('localStorage.clear(); true');
+  for (const target of [workspaceFile, workspaceBackup]) {
+    try {
+      if (fs.existsSync(target)) fs.unlinkSync(target);
+    } catch {
+      /* nothing to clean */
+    }
+  }
+  await win.webContents.reload();
+  await sleep(2500);
+
+  win.webContents.focus();
+  win.webContents.sendInputEvent({ type: 'mouseDown', x: 300, y: 200, button: 'left', clickCount: 1 });
+  win.webContents.sendInputEvent({ type: 'mouseUp', x: 300, y: 200, button: 'left', clickCount: 1 });
+  await sleep(300);
+
+  const shared = 'const shared = 41 + 1';
+  await typeText(win, shared);
+  await sleep(900);
+
+  clipboard.writeText('');
+
+  /**
+   * Runs a registered command through the palette. The keyboard path for these
+   * is a menu accelerator in the packaged app, so going through the registry
+   * is both deterministic here and the same code path.
+   */
+  const runCommand = async title => {
+    const script =
+      '(() => {' +
+      "  const open = [...document.querySelectorAll('button')].find(" +
+      "    node => node.textContent.trim() === 'Commands');" +
+      "  if (!open) return 'no-commands-button';" +
+      '  open.click();' +
+      '  return new Promise(resolve => setTimeout(() => {' +
+      "    const entry = [...document.querySelectorAll('[role=\"option\"]')]" +
+      '      .find(node => node.textContent.includes(' +
+      JSON.stringify(title) +
+      '));' +
+      "    if (!entry) return resolve('no-entry');" +
+      '    entry.click();' +
+      "    resolve('ran');" +
+      '  }, 300));' +
+      '})()';
+    return win.webContents.executeJavaScript(script);
+  };
+
+  expect(
+    (await runCommand('Copy shareable snippet')) === 'ran',
+    'the copy command is not in the palette'
+  );
+  await sleep(1500);
+  const token = clipboard.readText();
+  console.log(
+    'share  : token =',
+    token ? token.slice(0, 24) + '… (' + token.length + ' chars)' : '(empty)'
+  );
+  expect(
+    /^sandbox:\d+:[rz]:/.test(token),
+    'no shareable token reached the clipboard: ' + JSON.stringify(token.slice(0, 60))
+  );
+
+  expect(
+    (await runCommand('Open shared snippet')) === 'ran',
+    'the paste command is not in the palette'
+  );
+  await sleep(1800);
+
+  const reopened = await win.webContents.executeJavaScript(`
+    (() => {
+      const tabs = [
+        ...document.querySelectorAll('.drag-bar .tab button[aria-label^="Close "]')
+      ].map(node => node.getAttribute('aria-label').replace('Close ', ''));
+      const panes = document.querySelectorAll(${JSON.stringify(PANES)});
+      return { tabs, editor: panes[0] ? panes[0].innerText : '' };
+    })()
+  `);
+  console.log('share  : tabs after paste =', JSON.stringify(reopened.tabs));
+
+  expect(
+    reopened.tabs.length === 2,
+    `pasting a snippet did not open a tab: ${JSON.stringify(reopened.tabs)}`
+  );
+  expect(
+    normalize(reopened.editor).includes('41 + 1'),
+    `the reopened tab does not hold the shared code: ${JSON.stringify(reopened.editor)}`
   );
 
   if (SHOT) {

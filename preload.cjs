@@ -45,6 +45,11 @@ contextBridge.exposeInMainWorld('sandbox', {
     onCommand: callback => subscribe('menu:command', callback)
   },
 
+  clipboard: {
+    write: text => ipcRenderer.invoke('clipboard:write', text),
+    read: () => ipcRenderer.invoke('clipboard:read')
+  },
+
   node: {
     start: () => ipcRenderer.invoke('node:start'),
     send: message => ipcRenderer.send('node:send', message),
