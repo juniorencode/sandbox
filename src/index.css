@@ -2,6 +2,175 @@
 @tailwind components;
 @tailwind utilities;
 
+/**
+ * Colour tokens.
+ *
+ * Every surface, border and text colour in the app was a literal hex value
+ * repeated across a dozen components, which is why there was only ever one
+ * theme. Naming them by role rather than by value is what lets the light
+ * theme differ where it has to: a border and a raised surface are the same
+ * colour in the dark theme and must not be in the light one.
+ *
+ * Dark is the default and lives on bare `:root`, so nothing depends on a
+ * media query to look right. `data-theme` on the root element overrides it in
+ * either direction, and `system` leaves the attribute off.
+ */
+:root {
+  color-scheme: dark;
+
+  --c-app: #212830;
+  --c-chrome: #14181f;
+  --c-panel: #1b212b;
+  --c-panel-hover: #232b36;
+  --c-raised: #2d3641;
+  --c-raised-hover: #3a4552;
+  --c-overlay-hover: #464d5a;
+
+  --c-line: #2d3641;
+  --c-line-soft: #252d38;
+  --c-line-strong: #3a4552;
+
+  --c-ink: #d1d7e0;
+  --c-ink-strong: #f0f3f6;
+  --c-key: #b3bac5;
+  --c-muted: #9198a1;
+  --c-faint: #6b7280;
+
+  --c-danger: #ff7b72;
+  --c-danger-soft: #3a1d1d;
+  --c-warn: #e3b341;
+  --c-warn-soft: #3a2d15;
+  --c-warn-strong: #9e6a03;
+  --c-warn-strong-hover: #bb8009;
+  --c-info: #79c0ff;
+  --c-info-soft: #132c3d;
+  --c-success: #3fb950;
+  --c-accent: #238636;
+  --c-accent-hover: #2ea043;
+  --c-focus: #58a6ff;
+
+  --c-str: #96d0ff;
+  --c-num: #6cb6ff;
+  --c-kw: #f47067;
+  --c-fn: #d2a8ff;
+  --c-ctor: #f0883e;
+
+  --c-scrollbar: #44484d;
+  --c-scrollbar-hover: #505254;
+  --c-slider: rgba(255, 255, 255, 0.04);
+  --c-slider-hover: rgba(255, 255, 255, 0.05);
+
+  /* The empty-state artwork is a dark shape, so it needs holding back on a
+     light surface and can be shown at full strength on a dark one. */
+  --watermark-opacity: 1;
+}
+
+/* Follows the OS when the user has not chosen, which is the default. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    color-scheme: light;
+
+    --c-app: #ffffff;
+    --c-chrome: #f6f8fa;
+    --c-panel: #ffffff;
+    --c-panel-hover: #f3f4f6;
+    --c-raised: #eaeef2;
+    --c-raised-hover: #dfe3e8;
+    --c-overlay-hover: #d0d7de;
+
+    --c-line: #d0d7de;
+    --c-line-soft: #e4e8ed;
+    --c-line-strong: #afb8c1;
+
+    --c-ink: #1f2328;
+    --c-ink-strong: #010409;
+    --c-key: #24292f;
+    --c-muted: #656d76;
+    --c-faint: #8c959f;
+
+    --c-danger: #cf222e;
+    --c-danger-soft: #ffebe9;
+    --c-warn: #9a6700;
+    --c-warn-soft: #fff8c5;
+    --c-warn-strong: #9a6700;
+    --c-warn-strong-hover: #7d4e00;
+    --c-info: #0969da;
+    --c-info-soft: #ddf4ff;
+    --c-success: #1a7f37;
+    --c-accent: #1f883d;
+    --c-accent-hover: #1a7f37;
+    --c-focus: #0969da;
+
+    --c-str: #0a3069;
+    --c-num: #0550ae;
+    --c-kw: #cf222e;
+    --c-fn: #8250df;
+    --c-ctor: #953800;
+
+    --c-scrollbar: #d0d7de;
+    --c-scrollbar-hover: #afb8c1;
+    --c-slider: rgba(0, 0, 0, 0.05);
+    --c-slider-hover: rgba(0, 0, 0, 0.08);
+
+    --watermark-opacity: 0.06;
+  }
+}
+
+/* An explicit choice wins over the OS, in both directions. */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --c-app: #ffffff;
+  --c-chrome: #f6f8fa;
+  --c-panel: #ffffff;
+  --c-panel-hover: #f3f4f6;
+  --c-raised: #eaeef2;
+  --c-raised-hover: #dfe3e8;
+  --c-overlay-hover: #d0d7de;
+
+  --c-line: #d0d7de;
+  --c-line-soft: #e4e8ed;
+  --c-line-strong: #afb8c1;
+
+  --c-ink: #1f2328;
+  --c-ink-strong: #010409;
+  --c-key: #24292f;
+  --c-muted: #656d76;
+  --c-faint: #8c959f;
+
+  --c-danger: #cf222e;
+  --c-danger-soft: #ffebe9;
+  --c-warn: #9a6700;
+  --c-warn-soft: #fff8c5;
+  --c-warn-strong: #9a6700;
+  --c-warn-strong-hover: #7d4e00;
+  --c-info: #0969da;
+  --c-info-soft: #ddf4ff;
+  --c-success: #1a7f37;
+  --c-accent: #1f883d;
+  --c-accent-hover: #1a7f37;
+  --c-focus: #0969da;
+
+  --c-str: #0a3069;
+  --c-num: #0550ae;
+  --c-kw: #cf222e;
+  --c-fn: #8250df;
+  --c-ctor: #953800;
+
+  --c-scrollbar: #d0d7de;
+  --c-scrollbar-hover: #afb8c1;
+  --c-slider: rgba(0, 0, 0, 0.05);
+  --c-slider-hover: rgba(0, 0, 0, 0.08);
+
+  --watermark-opacity: 0.06;
+}
+
+/* Set here rather than as a class on <body>, so the token is the only source. */
+body {
+  background-color: var(--c-app);
+  color: var(--c-ink);
+}
+
 .decorationsOverviewRuler {
   width: 0 !important;
   height: 0 !important;
@@ -12,15 +181,15 @@
 }
 
 ::-webkit-scrollbar-track {
-  background-color: #212830;
+  background-color: var(--c-app);
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: #44484d;
+  background-color: var(--c-scrollbar);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: #505254;
+  background-color: var(--c-scrollbar-hover);
 }
 
 .monaco-editor div {
@@ -28,9 +197,9 @@
 }
 
 .scrollbar .slider {
-  background-color: rgba(255, 255, 255, 0.04) !important;
+  background-color: var(--c-slider) !important;
 }
 
 .scrollbar .slider:hover {
-  background-color: rgba(255, 255, 255, 0.05) !important;
+  background-color: var(--c-slider-hover) !important;
 }

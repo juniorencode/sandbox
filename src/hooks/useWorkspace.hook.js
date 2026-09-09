@@ -21,6 +21,9 @@ import { workspace as store } from '../platform';
 const PERSIST_DEBOUNCE_MS = 400;
 
 export const DEFAULT_SETTINGS = {
+  // Follows the OS unless the user picks one. The app previously had a single
+  // hardcoded palette.
+  theme: 'system',
   editorSeparator: 60,
   layout: 'horizontal',
   autoRun: true,
@@ -44,6 +47,7 @@ export const DEFAULT_SETTINGS = {
 
 const LANGUAGES = ['javascript', 'jsx', 'typescript', 'tsx'];
 export const RUNTIMES = ['browser', 'node'];
+export const THEMES = ['system', 'dark', 'light'];
 
 /** Guessed from the extension when a real file is opened. */
 export const languageForName = name => {

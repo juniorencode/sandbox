@@ -34,24 +34,24 @@ export const ConfirmDialog = ({
       role="presentation"
     >
       <div
-        className="w-[min(460px,92vw)] rounded-lg border border-[#2d3641] bg-[#1b212b] p-4 shadow-2xl"
+        className="w-[min(460px,92vw)] rounded-lg border border-line bg-panel p-4 shadow-2xl"
         onMouseDown={event => event.stopPropagation()}
         role="dialog"
         aria-label={title}
       >
         <h2
           className={`text-[14px] font-semibold ${
-            tone === 'warning' ? 'text-[#e3b341]' : 'text-neutral-100'
+            tone === 'warning' ? 'text-warn' : 'text-ink-strong'
           }`}
         >
           {title}
         </h2>
-        <div className="mt-2 text-[13px] leading-relaxed text-[#9198A1]">
+        <div className="mt-2 text-[13px] leading-relaxed text-muted">
           {body}
         </div>
         <div className="mt-4 flex justify-end gap-2 text-[13px]">
           <button
-            className="rounded px-3 py-1.5 text-[#9198A1] hover:bg-[#2d3641] hover:text-neutral-200"
+            className="rounded px-3 py-1.5 text-muted hover:bg-raised hover:text-ink"
             onClick={onCancel}
           >
             {cancelLabel}
@@ -59,8 +59,8 @@ export const ConfirmDialog = ({
           <button
             className={`rounded px-3 py-1.5 text-white ${
               tone === 'warning'
-                ? 'bg-[#9e6a03] hover:bg-[#bb8009]'
-                : 'bg-[#238636] hover:bg-[#2ea043]'
+                ? 'bg-warn-strong hover:bg-warn-strong-hover'
+                : 'bg-accent hover:bg-accent-hover'
             }`}
             onClick={onConfirm}
           >

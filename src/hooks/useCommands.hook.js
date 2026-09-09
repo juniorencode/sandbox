@@ -153,6 +153,12 @@ export const useCommands = ({
         run: editorActions.format
       },
       {
+        id: 'theme.cycle',
+        title: `Theme: ${settings.theme} (switch)`,
+        group: 'Editor',
+        run: editorActions.cycleTheme
+      },
+      {
         id: 'settings.open',
         title: 'Settings',
         group: 'General',
@@ -180,5 +186,6 @@ export const useCommands = ({
     panel,
     palette,
     settings.autoRun,
+    settings.theme,
     updates
   ]);

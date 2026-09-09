@@ -16,6 +16,7 @@ import { useHistory } from './hooks/useHistory.hook';
 import { useMenuBridge } from './hooks/useMenuBridge.hook';
 import { useRunner, STATUS } from './hooks/useRunner.hook';
 import { useShortcuts } from './hooks/useShortcuts.hook';
+import { useTheme } from './hooks/useTheme.hook';
 import { useUpdates } from './hooks/useUpdates.hook';
 import { useWorkspace } from './hooks/useWorkspace.hook';
 import { appInfo as readAppInfo, assets, modules } from './platform';
@@ -64,6 +65,7 @@ const App = () => {
   const language = activeTab?.language ?? 'javascript';
   const runtime = activeTab?.runtime ?? 'browser';
   const vertical = settings.layout === 'vertical';
+  const appearance = useTheme(settings.theme);
 
   const limits = useMemo(
     () => ({ maxDepth: settings.maxDepth, maxItems: settings.maxItems }),
@@ -176,8 +178,18 @@ const App = () => {
   );
 
   const editorActions = useMemo(
-    () => ({ format, openSettings: () => setSettingsOpen(true) }),
-    [format]
+    () => ({
+      format,
+      openSettings: () => setSettingsOpen(true),
+      // Cycles rather than toggles, so `system` stays reachable from the
+      // palette instead of only from the settings dialog.
+      cycleTheme: () => {
+        const order = ['system', 'dark', 'light'];
+        const next = order[(order.indexOf(settings.theme) + 1) % order.length];
+        updateSettings({ theme: next });
+      }
+    }),
+    [format, settings.theme, updateSettings]
   );
 
   const commands = useCommands({
@@ -399,7 +411,7 @@ const App = () => {
 
   // The workspace is a file now, so the first paint happens before it is read.
   if (!loaded) {
-    return <div className="h-screen bg-[#212830]" />;
+    return <div className="h-screen bg-app" />;
   }
 
   return (
@@ -423,7 +435,7 @@ const App = () => {
       />
 
       {persistError && (
-        <div className="shrink-0 bg-[#3a2d15] px-3 py-1 text-[12px] text-[#e3b341]">
+        <div className="shrink-0 bg-warn-soft px-3 py-1 text-[12px] text-warn">
           {`Could not save the workspace: ${persistError}`}
         </div>
       )}
@@ -445,6 +457,7 @@ const App = () => {
           fontSize={settings.fontSize}
           tabSize={settings.tabSize}
           wordWrap={settings.wordWrap}
+          appearance={appearance}
           style={{ flex: `0 0 ${settings.editorSeparator}%` }}
         />
 
@@ -459,7 +472,7 @@ const App = () => {
         >
           <div
             className={
-              vertical ? 'h-0.5 w-full bg-[#2d3641]' : 'w-0.5 bg-[#2d3641]'
+              vertical ? 'h-0.5 w-full bg-raised' : 'w-0.5 bg-raised'
             }
           ></div>
         </div>
@@ -542,7 +555,7 @@ const App = () => {
           <>
             <p>
               Node mode evaluates the tab in a real Node process, so
-              <span className="text-neutral-200"> require</span>, the built-in
+              <span className="text-ink"> require</span>, the built-in
               modules and packages installed on disk all work.
             </p>
             <p className="mt-2">

@@ -479,6 +479,93 @@ app.whenReady().then(async () => {
   const responsive = await win.webContents.executeJavaScript('1 + 1');
   expect(responsive === 2, 'the renderer stopped responding under load');
 
+
+  /**
+   * Both themes. The app had a single hardcoded palette, so this checks that
+   * the token layer actually reaches the page: the root attribute, the painted
+   * background, and Monaco's own theme all have to change together.
+   */
+  const readAppearance = () =>
+    win.webContents.executeJavaScript(`
+      (() => {
+        const root = document.documentElement;
+        const monaco = document.querySelector('.monaco-editor');
+        return {
+          attribute: root.dataset.theme || '(unset)',
+          scheme: getComputedStyle(root).colorScheme,
+          body: getComputedStyle(document.body).backgroundColor,
+          token: getComputedStyle(root).getPropertyValue('--c-app').trim(),
+          editor: monaco ? getComputedStyle(monaco).backgroundColor : null
+        };
+      })()
+    `);
+
+  const setTheme = value =>
+    win.webContents.executeJavaScript(`
+      (() => {
+        const open = document.querySelector('button[aria-label="Settings"]');
+        if (!open) return 'no-settings-button';
+        open.click();
+        return new Promise(resolve => setTimeout(() => {
+          const select = document.querySelector('select[aria-label="Theme"]');
+          if (!select) return resolve('no-theme-select');
+          select.value = ${JSON.stringify('PLACEHOLDER')};
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+          document.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+          );
+          resolve('ok');
+        }, 250));
+      })()
+    `.replace('PLACEHOLDER', value));
+
+  const asDark = await (async () => {
+    const outcome = await setTheme('dark');
+    if (outcome !== 'ok') problems.push('could not reach the theme setting: ' + outcome);
+    await sleep(700);
+    return readAppearance();
+  })();
+  console.log('theme  : dark  ->', JSON.stringify(asDark));
+
+  const asLight = await (async () => {
+    await setTheme('light');
+    await sleep(700);
+    return readAppearance();
+  })();
+  console.log('theme  : light ->', JSON.stringify(asLight));
+
+  expect(asDark.attribute === 'dark', 'the dark theme did not reach the root element');
+  expect(asLight.attribute === 'light', 'the light theme did not reach the root element');
+  expect(
+    asDark.token !== asLight.token,
+    `the colour tokens did not change between themes: ${asDark.token} vs ${asLight.token}`
+  );
+  expect(
+    asDark.body !== asLight.body,
+    `the painted background did not change: ${asDark.body} vs ${asLight.body}`
+  );
+  expect(
+    asDark.editor !== asLight.editor,
+    `Monaco kept the same theme: ${asDark.editor} vs ${asLight.editor}`
+  );
+  expect(
+    asLight.scheme === 'light',
+    `color-scheme was not applied: ${asLight.scheme}`
+  );
+
+  if (SHOT) {
+    for (const [name, value] of [['light', 'light'], ['dark', 'dark']]) {
+      await setTheme(value);
+      await sleep(800);
+      const themed = await win.webContents.capturePage();
+      fs.writeFileSync(
+        path.join(ROOT, 'build', `verify-app-${name}.png`),
+        themed.toPNG()
+      );
+      console.log('screenshot:', `build/verify-app-${name}.png`);
+    }
+  }
+
   if (SHOT) {
     const image = await win.webContents.capturePage();
     const target = path.join(ROOT, 'build', 'verify-app.png');

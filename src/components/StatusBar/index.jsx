@@ -27,11 +27,11 @@ const LABEL = {
 };
 
 const TONE = {
-  [STATUS.STARTING]: 'text-[#9198A1]',
-  [STATUS.IDLE]: 'text-[#9198A1]',
-  [STATUS.RUNNING]: 'text-[#e3b341]',
-  [STATUS.SETTLED]: 'text-[#3fb950]',
-  [STATUS.TIMEOUT]: 'text-[#ff7b72]'
+  [STATUS.STARTING]: 'text-muted',
+  [STATUS.IDLE]: 'text-muted',
+  [STATUS.RUNNING]: 'text-warn',
+  [STATUS.SETTLED]: 'text-success',
+  [STATUS.TIMEOUT]: 'text-danger'
 };
 
 /** Appends a keyboard hint only when the command actually has a binding. */
@@ -57,7 +57,7 @@ export const StatusBar = ({
   onOpenPalette,
   onOpenSettings
 }) => (
-  <div className="flex h-6 shrink-0 items-center gap-3 border-t border-[#2d3641] bg-[#14181f] px-3 text-[12px] text-[#9198A1] select-none">
+  <div className="flex h-6 shrink-0 items-center gap-3 border-t border-line bg-chrome px-3 text-[12px] text-muted select-none">
     <span className={`flex items-center gap-1 ${TONE[status] ?? ''}`}>
       <VscCircleFilled size={8} />
       {LABEL[status] ?? status}
@@ -76,10 +76,10 @@ export const StatusBar = ({
     {/* The compiler is loaded on demand, so its state belongs next to the
         language it applies to rather than in a dialog. */}
     {language !== 'javascript' && transpiler?.status === 'loading' && (
-      <span className="text-[#e3b341]">compiler loading…</span>
+      <span className="text-warn">compiler loading…</span>
     )}
     {language !== 'javascript' && transpiler?.status === 'error' && (
-      <span className="text-[#ff7b72]" title={transpiler.message}>
+      <span className="text-danger" title={transpiler.message}>
         compiler unavailable
       </span>
     )}
@@ -88,8 +88,8 @@ export const StatusBar = ({
       {/* Node mode is visually distinct because it is the one setting that
           changes what the code being run is allowed to do. */}
       <select
-        className={`rounded bg-transparent px-1 py-0.5 text-[12px] outline-none hover:bg-[#2d3641] ${
-          runtime === 'node' ? 'text-[#e3b341]' : 'text-[#9198A1]'
+        className={`rounded bg-transparent px-1 py-0.5 text-[12px] outline-none hover:bg-raised ${
+          runtime === 'node' ? 'text-warn' : 'text-muted'
         }`}
         value={runtime}
         onChange={event => onRuntimeChange(event.target.value)}
@@ -101,29 +101,29 @@ export const StatusBar = ({
         aria-label="Runtime for this tab"
       >
         {runtimes.map(option => (
-          <option key={option} value={option} className="bg-[#1b212b]">
+          <option key={option} value={option} className="bg-panel">
             {option}
           </option>
         ))}
       </select>
 
       <select
-        className="rounded bg-transparent px-1 py-0.5 text-[12px] text-[#9198A1] outline-none hover:bg-[#2d3641]"
+        className="rounded bg-transparent px-1 py-0.5 text-[12px] text-muted outline-none hover:bg-raised"
         value={language}
         onChange={event => onLanguageChange(event.target.value)}
         title="Language for this tab"
         aria-label="Language for this tab"
       >
         {languages.map(option => (
-          <option key={option} value={option} className="bg-[#1b212b]">
+          <option key={option} value={option} className="bg-panel">
             {option}
           </option>
         ))}
       </select>
 
       <button
-        className={`flex items-center gap-1 rounded px-2 py-0.5 hover:bg-[#2d3641] ${
-          autoRun ? 'text-[#3fb950]' : ''
+        className={`flex items-center gap-1 rounded px-2 py-0.5 hover:bg-raised ${
+          autoRun ? 'text-success' : ''
         }`}
         onClick={onToggleAutoRun}
         title={
@@ -136,7 +136,7 @@ export const StatusBar = ({
       </button>
 
       <button
-        className="flex items-center gap-1 rounded px-2 py-0.5 hover:bg-[#2d3641]"
+        className="flex items-center gap-1 rounded px-2 py-0.5 hover:bg-raised"
         onClick={onRun}
         title={withHint('Run now', hints.run)}
       >
@@ -145,7 +145,7 @@ export const StatusBar = ({
       </button>
 
       <button
-        className="flex items-center gap-1 rounded px-2 py-0.5 hover:bg-[#2d3641] disabled:opacity-40"
+        className="flex items-center gap-1 rounded px-2 py-0.5 hover:bg-raised disabled:opacity-40"
         onClick={onStop}
         disabled={status !== STATUS.RUNNING}
         title={withHint(
@@ -158,7 +158,7 @@ export const StatusBar = ({
       </button>
 
       <button
-        className="flex items-center gap-1 rounded px-2 py-0.5 hover:bg-[#2d3641]"
+        className="flex items-center gap-1 rounded px-2 py-0.5 hover:bg-raised"
         onClick={onClear}
         title={withHint('Clear output', hints.clear)}
       >
@@ -167,7 +167,7 @@ export const StatusBar = ({
       </button>
 
       <button
-        className="flex items-center gap-1 rounded px-2 py-0.5 hover:bg-[#2d3641]"
+        className="flex items-center gap-1 rounded px-2 py-0.5 hover:bg-raised"
         onClick={onOpenPalette}
         title={withHint('Command palette', hints.palette)}
       >
@@ -176,7 +176,7 @@ export const StatusBar = ({
       </button>
 
       <button
-        className="flex items-center gap-1 rounded px-2 py-0.5 hover:bg-[#2d3641]"
+        className="flex items-center gap-1 rounded px-2 py-0.5 hover:bg-raised"
         onClick={onOpenSettings}
         title={withHint('Settings', hints.settings)}
         aria-label="Settings"
