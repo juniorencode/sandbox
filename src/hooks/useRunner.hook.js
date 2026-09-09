@@ -36,7 +36,12 @@ import {
  * when it has to be killed.
  */
 
-const MAX_ENTRIES = 2000;
+/**
+ * The pane renders only what is near the viewport, so this is a memory bound
+ * on retained serialised values rather than a rendering one. It was 2000
+ * because every entry was a live DOM node.
+ */
+const MAX_ENTRIES = 20000;
 
 export const STATUS = {
   STARTING: 'starting',
