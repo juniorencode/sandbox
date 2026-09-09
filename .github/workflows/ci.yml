@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # `npm ci` installs from the lockfile only. prop-types used to resolve
+      # by accident as a hoisted dev dependency of eslint-plugin-react, so a
+      # production install produced a build that failed to resolve the import.
+      - run: npm ci
+
+      - run: npm run lint
+
+      - run: npm test
+
+      - run: npm run build-vite
+
+      - name: Fail if the renderer still fetches Monaco from a CDN
+        run: |
+          if grep -rq "cdn.jsdelivr.net" build/assets; then
+            echo "The build references a CDN; Monaco must be bundled locally."
+            exit 1
+          fi
