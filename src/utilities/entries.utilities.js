@@ -33,30 +33,33 @@ export const applyCollapse = (entries, collapsed) => {
 };
 
 /**
- * Buckets entries by source line and orders them by line number.
+ * Orders entries by the line that produced them, then by arrival.
  *
  * Ordering by line rather than by arrival is what makes a log from a function
  * defined at the top but called at the bottom appear next to its own
- * statement. Entries with no location, which happens when console is used as
- * a value rather than called directly, are collected at the end instead of
- * being pinned to a line they do not belong to.
+ * statement, which padding-based alignment could never do: it could only move
+ * forward. Entries with no location, which happens when console is used as a
+ * value rather than called directly, go to the end instead of being pinned to
+ * a line they do not belong to.
+ *
+ * Each entry carries its own layout key, so the pane can position and
+ * virtualise them one at a time.
  */
-export const groupByLine = entries => {
-  const buckets = new Map();
+export const orderEntries = entries =>
+  entries
+    .map(entry => ({
+      ...entry,
+      key: String(entry.entryId),
+      line: entry.line ?? null
+    }))
+    .sort((a, b) => {
+      if (a.line === b.line) return a.entryId - b.entryId;
+      if (a.line === null) return 1;
+      if (b.line === null) return -1;
+      return a.line - b.line;
+    });
 
-  for (const entry of entries) {
-    const key = entry.line == null ? 'unlocated' : String(entry.line);
-    let bucket = buckets.get(key);
-    if (!bucket) {
-      bucket = { key, line: entry.line ?? null, entries: [] };
-      buckets.set(key, bucket);
-    }
-    bucket.entries.push(entry);
-  }
-
-  return [...buckets.values()].sort((a, b) => {
-    if (a.line === null) return 1;
-    if (b.line === null) return -1;
-    return a.line - b.line;
-  });
-};
+/** True when an entry is the first unlocated one, which gets the marker. */
+export const isFirstUnlocated = (ordered, index) =>
+  ordered[index].line === null &&
+  (index === 0 || ordered[index - 1].line !== null);

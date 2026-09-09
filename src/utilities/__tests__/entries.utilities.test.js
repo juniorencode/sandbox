@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { applyCollapse, groupByLine } from '../entries.utilities.js';
+import {
+  applyCollapse,
+  isFirstUnlocated,
+  orderEntries
+} from '../entries.utilities.js';
 
 const log = (entryId, line, group = 0) => ({
   t: 'log',
@@ -21,29 +25,55 @@ const groupEnd = (entryId, depth = 0) => ({
   group: depth
 });
 
-describe('groupByLine', () => {
+describe('orderEntries', () => {
   it('orders by line, not by arrival', () => {
     // A function defined at the top but called at the bottom logs last while
     // belonging to the earlier line. Padding-based alignment could never move
     // it back up.
-    const groups = groupByLine([log(1, 2), log(2, 1)]);
-    expect(groups.map(bucket => bucket.line)).toEqual([1, 2]);
+    const ordered = orderEntries([log(1, 2), log(2, 1)]);
+    expect(ordered.map(entry => entry.line)).toEqual([1, 2]);
   });
 
-  it('keeps repeated logs from one line together in arrival order', () => {
-    const groups = groupByLine([log(1, 2), log(2, 2), log(3, 4)]);
-    expect(groups).toHaveLength(2);
-    expect(groups[0].entries.map(entry => entry.entryId)).toEqual([1, 2]);
+  it('keeps repeated logs from one line in arrival order', () => {
+    const ordered = orderEntries([log(3, 2), log(1, 2), log(2, 2)]);
+    expect(ordered.map(entry => entry.entryId)).toEqual([1, 2, 3]);
   });
 
-  it('collects unlocated entries at the end', () => {
-    const groups = groupByLine([log(1, null), log(2, 5), log(3, null)]);
-    expect(groups.map(bucket => bucket.line)).toEqual([5, null]);
-    expect(groups[1].entries).toHaveLength(2);
+  it('sends unlocated entries to the end', () => {
+    const ordered = orderEntries([log(1, null), log(2, 5), log(3, null)]);
+    expect(ordered.map(entry => entry.line)).toEqual([5, null, null]);
+  });
+
+  it('gives every entry its own layout key', () => {
+    const ordered = orderEntries([log(7, 1), log(8, 1)]);
+    expect(ordered.map(entry => entry.key)).toEqual(['7', '8']);
+  });
+
+  it('normalises a missing line to null', () => {
+    const ordered = orderEntries([{ t: 'log', entryId: 1, group: 0 }]);
+    expect(ordered[0].line).toBeNull();
   });
 
   it('returns nothing for no entries', () => {
-    expect(groupByLine([])).toEqual([]);
+    expect(orderEntries([])).toEqual([]);
+  });
+});
+
+describe('isFirstUnlocated', () => {
+  it('marks only the first of a run of unlocated entries', () => {
+    // The marker explains why those entries have no line; repeating it on
+    // every one of them would be noise.
+    const ordered = orderEntries([log(1, 4), log(2, null), log(3, null)]);
+    expect(ordered.map((_, index) => isFirstUnlocated(ordered, index))).toEqual([
+      false,
+      true,
+      false
+    ]);
+  });
+
+  it('marks the first entry when everything is unlocated', () => {
+    const ordered = orderEntries([log(1, null)]);
+    expect(isFirstUnlocated(ordered, 0)).toBe(true);
   });
 });
 

@@ -417,6 +417,68 @@ app.whenReady().then(async () => {
     `node mode did not run: ${JSON.stringify(nodeRun.output)}`
   );
 
+
+  /**
+   * A large run, which used to freeze the app: every entry was a live DOM
+   * node. The pane renders only what is near the viewport now, so the node
+   * count has to stay bounded no matter how much is logged.
+   */
+  await win.webContents.executeJavaScript('localStorage.clear(); true');
+  for (const target of [workspaceFile, workspaceBackup]) {
+    try {
+      if (fs.existsSync(target)) fs.unlinkSync(target);
+    } catch {
+      /* nothing to clean */
+    }
+  }
+  await win.webContents.reload();
+  await sleep(2500);
+
+  win.webContents.focus();
+  win.webContents.sendInputEvent({ type: 'mouseDown', x: 300, y: 200, button: 'left', clickCount: 1 });
+  win.webContents.sendInputEvent({ type: 'mouseUp', x: 300, y: 200, button: 'left', clickCount: 1 });
+  await sleep(300);
+
+  const started = Date.now();
+  await typeText(win, 'for (let i = 0; i < 5000; i++) console.log("row", i)');
+  await sleep(4000);
+
+  const bulk = await win.webContents.executeJavaScript(`
+    (() => {
+      const panes = document.querySelectorAll(${JSON.stringify(PANES)});
+      const pane = panes[2];
+      return {
+        entries: (document.querySelector('.h-6') || {}).innerText || '',
+        blocks: pane ? pane.querySelectorAll('.absolute.inset-x-0.px-4').length : -1,
+        nodes: pane ? pane.querySelectorAll('*').length : -1
+      };
+    })()
+  `);
+  const elapsed = Date.now() - started;
+
+  console.log(
+    'bulk   :',
+    oneLine(bulk.entries).split(' | ').slice(0, 3).join(' | '),
+    '| blocks in dom =',
+    bulk.blocks,
+    '| total nodes =',
+    bulk.nodes,
+    '|',
+    elapsed + 'ms'
+  );
+
+  expect(
+    bulk.entries.includes('5000 entries'),
+    `expected 5000 entries, status was: ${JSON.stringify(oneLine(bulk.entries))}`
+  );
+  expect(
+    bulk.blocks > 0 && bulk.blocks < 200,
+    `the output pane is not virtualised: ${bulk.blocks} blocks rendered for 5000 entries`
+  );
+  // The window still has to answer, which is what the freeze took away.
+  const responsive = await win.webContents.executeJavaScript('1 + 1');
+  expect(responsive === 2, 'the renderer stopped responding under load');
+
   if (SHOT) {
     const image = await win.webContents.capturePage();
     const target = path.join(ROOT, 'build', 'verify-app.png');
