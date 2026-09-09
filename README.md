@@ -36,6 +36,8 @@ the first launch.
 - Top-level strings print unquoted.
 - The full console API: `table`, `group`, `groupCollapsed`, `time`, `timeEnd`,
   `count`, `assert`, `dir`, `trace`, and distinct styling per level.
+- Virtualised: only entries near the viewport are in the DOM, so a run that
+  logs thousands of times stays responsive.
 
 ### Languages and packages
 
@@ -60,6 +62,10 @@ the first launch.
 - Open and save real files, and export or import the whole workspace.
 - Execution history, and search across every tab.
 - A command palette (`Ctrl+Shift+P`) listing every command with its binding.
+- Share a snippet as a self-contained token that any copy of Sandbox reads
+  back, or as a markdown code block. Nothing hosts the editor, so there is no
+  link to hand out; the token travels through the clipboard instead.
+- Light and dark themes, following the operating system unless you pick one.
 
 ## Keyboard
 
@@ -75,6 +81,8 @@ the first launch.
 | Find in all tabs | `Ctrl+Shift+F` |
 | Execution history | `Ctrl+H` |
 | Format document | `Alt+Shift+F` |
+| Copy shareable snippet | `Ctrl+Shift+C` |
+| Open shared snippet | `Ctrl+Shift+V` |
 | Settings | `Ctrl+,` |
 
 On macOS, `Cmd` replaces `Ctrl`.
@@ -110,9 +118,16 @@ The renderer never evaluates user code itself. Code goes through:
 4. **Serialise** — values are emitted as type-tagged nodes by a cycle-safe,
    budget-bound serialiser, and streamed one message per log.
 
-The output pane positions each line's entries at the pixel offset Monaco
-reports for that line, pushed down only as far as the previous block's
-measured height requires. Monaco is the only scroll authority for both panes.
+The output pane positions each entry at the pixel offset Monaco reports for
+the line that produced it, pushed down only as far as the previous entry
+requires, so entries sharing a line stack under it. The layout pass covers
+every entry while only those near the viewport are rendered, using a measured
+height where one is known and an estimate otherwise. Monaco is the only scroll
+authority for both panes.
+
+Colours are tokens declared in `src/index.css` and exposed as Tailwind roles,
+which is what allows a light theme: a border and a raised surface are the same
+value in the dark theme and have to differ in the light one.
 
 ### Layout
 
