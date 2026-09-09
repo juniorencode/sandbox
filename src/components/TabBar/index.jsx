@@ -67,7 +67,7 @@ export const TabBar = ({
   };
 
   return (
-    <div className="drag-bar flex shrink-0 gap-1 px-2 select-none bg-[#14181f]">
+    <div className="drag-bar flex shrink-0 gap-1 px-2 select-none bg-chrome">
       <div className="flex items-center justify-center gap-2 px-1">
         <button
           className="h-3 w-3 rounded-full bg-red-500 hover:bg-red-600"
@@ -94,7 +94,7 @@ export const TabBar = ({
         style={{ backgroundImage: `url('favicon.png')` }}
       ></div>
 
-      <div className="scrollbar-hidden flex h-[40px] flex-nowrap overflow-x-auto overflow-y-hidden whitespace-nowrap px-3 text-neutral-600">
+      <div className="scrollbar-hidden flex h-[40px] flex-nowrap overflow-x-auto overflow-y-hidden whitespace-nowrap px-3 text-muted">
         {tabs.map(tab => {
           const active = tab.id === activeTabId;
           return (
@@ -102,8 +102,8 @@ export const TabBar = ({
               key={tab.id}
               className={`tab group relative flex items-center justify-center gap-1 rounded-t-[10px] pl-4 pr-2 transition-colors ${
                 active
-                  ? 'indicator bg-[#212830] text-neutral-300'
-                  : 'hover:bg-[#1b212b] hover:text-neutral-500'
+                  ? 'indicator bg-app text-ink'
+                  : 'hover:bg-panel hover:text-muted'
               } ${dragId === tab.id ? 'opacity-50' : ''}`}
               draggable={renamingId !== tab.id}
               onDragStart={() => setDragId(tab.id)}
@@ -115,7 +115,7 @@ export const TabBar = ({
               {renamingId === tab.id ? (
                 <input
                   ref={inputRef}
-                  className="w-24 bg-transparent text-neutral-100 outline-none"
+                  className="w-24 bg-transparent text-ink-strong outline-none"
                   value={draft}
                   onChange={event => setDraft(event.target.value)}
                   onKeyDown={handleRenameKey}
@@ -132,12 +132,12 @@ export const TabBar = ({
                   {tab.name}
                   {/* A tab backed by a real file is worth distinguishing from
                       a scratchpad tab. */}
-                  {tab.path && <span className="ml-1 text-[#6b7280]">·</span>}
+                  {tab.path && <span className="ml-1 text-faint">·</span>}
                 </button>
               )}
 
               <button
-                className="flex h-4 w-4 items-center justify-center rounded-full hover:bg-[#464d5a]"
+                className="flex h-4 w-4 items-center justify-center rounded-full hover:bg-overlay-hover"
                 title="Close tab"
                 aria-label={`Close ${tab.name}`}
                 onClick={() => onClose(tab.id)}
@@ -150,7 +150,7 @@ export const TabBar = ({
 
         <div className="ml-2 flex items-center justify-center">
           <button
-            className="tab rounded-full p-0.5 transition-colors hover:bg-[#2d3641] hover:text-neutral-300"
+            className="tab rounded-full p-0.5 transition-colors hover:bg-raised hover:text-ink"
             title={newTabHint ? `New tab (${newTabHint})` : 'New tab'}
             aria-label="New tab"
             onClick={() => onCreate()}

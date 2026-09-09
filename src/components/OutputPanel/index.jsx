@@ -181,13 +181,21 @@ export const OutputPanel = ({
   return (
     <div
       ref={containerRef}
-      className="relative min-h-0 min-w-0 overflow-hidden bg-no-repeat bg-[length:50%] bg-center leading-[1.36] text-neutral-300"
-      style={{
-        ...style,
-        fontSize: `${fontSize}px`,
-        backgroundImage: empty ? `url('shape.png')` : 'none'
-      }}
+      className="relative min-h-0 min-w-0 overflow-hidden leading-[1.36] text-ink"
+      style={{ ...style, fontSize: `${fontSize}px` }}
     >
+      {/* A child rather than a background image, so its weight can be tuned
+          per theme: the artwork is dark and sat heavily on a light surface. */}
+      {empty && (
+        <div
+          className="pointer-events-none absolute inset-0 bg-[length:50%] bg-center bg-no-repeat"
+          style={{
+            backgroundImage: `url('shape.png')`,
+            opacity: 'var(--watermark-opacity)'
+          }}
+          aria-hidden="true"
+        />
+      )}
       <div
         className="absolute inset-x-0 top-0"
         style={{ transform: `translateY(${-viewport.scrollTop}px)` }}
@@ -204,7 +212,7 @@ export const OutputPanel = ({
           >
             {markers.has(entry.key) && (
               <div
-                className="text-[11px] uppercase tracking-wide text-[#6b7280]"
+                className="text-[11px] uppercase tracking-wide text-faint"
                 title="Logged through a console reference, so no call site is known"
               >
                 no line
@@ -222,7 +230,7 @@ export const OutputPanel = ({
       </div>
 
       {overflowed && (
-        <div className="absolute inset-x-0 top-0 bg-[#3a2d15] px-4 py-1 text-[12px] text-[#e3b341]">
+        <div className="absolute inset-x-0 top-0 bg-warn-soft px-4 py-1 text-[12px] text-warn">
           Output was truncated to the most recent entries.
         </div>
       )}

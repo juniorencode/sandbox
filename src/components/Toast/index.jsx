@@ -14,8 +14,8 @@ import { VscClose } from 'react-icons/vsc';
 const DISMISS_AFTER_MS = 4000;
 
 const TONE = {
-  info: 'border-[#2d3641] bg-[#1b212b] text-neutral-200',
-  error: 'border-[#ff7b72] bg-[#3a1d1d] text-[#ff7b72]'
+  info: 'border-line bg-panel text-ink',
+  error: 'border-danger bg-danger-soft text-danger'
 };
 
 export const Toast = ({ notice, onDismiss }) => {

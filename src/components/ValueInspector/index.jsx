@@ -15,13 +15,13 @@ import { VscChevronRight, VscChevronDown } from 'react-icons/vsc';
  */
 
 const TONE = {
-  string: 'text-[#96D0FF]',
-  number: 'text-[#6CB6FF]',
-  keyword: 'text-[#f47067]',
-  muted: 'text-[#9198A1]',
-  fn: 'text-[#d2a8ff]',
-  ctor: 'text-[#f0883e]',
-  key: 'text-[#b3bac5]'
+  string: 'text-str',
+  number: 'text-num',
+  keyword: 'text-kw',
+  muted: 'text-muted',
+  fn: 'text-fn',
+  ctor: 'text-ctor',
+  key: 'text-key'
 };
 
 /** Containers small enough to read on one line are not worth collapsing. */
@@ -388,7 +388,7 @@ export const ValueNode = ({ node, onExpand, top = false, forceOpen = false }) =>
   if (node.t === 'error') {
     return (
       <span>
-        <span className="text-[#ff7b72]">{`${node.name}: ${node.message}`}</span>
+        <span className="text-danger">{`${node.name}: ${node.message}`}</span>
       </span>
     );
   }
@@ -408,7 +408,7 @@ export const ValueNode = ({ node, onExpand, top = false, forceOpen = false }) =>
   return (
     <span className="inline-block align-top">
       <button
-        className="inline-flex items-start gap-0.5 text-left hover:text-neutral-100"
+        className="inline-flex items-start gap-0.5 text-left hover:text-ink-strong"
         onClick={toggle}
         aria-expanded={open}
       >

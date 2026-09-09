@@ -36,8 +36,8 @@ export const UpdateBanner = ({ state, onDownload, onInstall, onDismiss }) => {
     <div
       className={`flex shrink-0 items-center gap-3 px-3 py-1 text-[12px] ${
         status === 'error'
-          ? 'bg-[#3a1d1d] text-[#ff7b72]'
-          : 'bg-[#132c3d] text-[#79c0ff]'
+          ? 'bg-danger-soft text-danger'
+          : 'bg-info-soft text-info'
       }`}
       role="status"
     >
