@@ -61,7 +61,9 @@ the first launch.
   automatically if the current one will not parse.
 - Open and save real files, and export or import the whole workspace.
 - Execution history, and search across every tab.
-- A command palette (`Ctrl+Shift+P`) listing every command with its binding.
+- A command palette (`Ctrl+Shift+P`) listing every command with its binding,
+  and a menu in the title bar with the same commands grouped for browsing. The
+  window is frameless, so there is no native menu bar to put them in.
 - Share a snippet as a self-contained token that any copy of Sandbox reads
   back, or as a markdown code block. Nothing hosts the editor, so there is no
   link to hand out; the token travels through the clipboard instead.

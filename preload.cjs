@@ -21,7 +21,9 @@ contextBridge.exposeInMainWorld('sandbox', {
     close: () => ipcRenderer.send('window:close'),
     minimize: () => ipcRenderer.send('window:minimize'),
     maximize: () => ipcRenderer.send('window:maximize'),
-    isMaximized: () => ipcRenderer.invoke('window:isMaximized')
+    isMaximized: () => ipcRenderer.invoke('window:isMaximized'),
+    reload: () => ipcRenderer.send('window:reload'),
+    toggleDevTools: () => ipcRenderer.send('window:toggleDevTools')
   },
 
   workspace: {

@@ -46,7 +46,7 @@ const readState = win =>
       const panes = document.querySelectorAll(${JSON.stringify(PANES)});
       return {
         monaco: !!document.querySelector('.monaco-editor'),
-        status: (document.querySelector('.h-6') || {}).innerText || '',
+        status: (document.querySelector('[role="contentinfo"]') || {}).innerText || '',
         editor: panes[0] ? panes[0].innerText : '',
         output: panes[2] ? panes[2].innerText : ''
       };
@@ -83,6 +83,34 @@ const normalize = text =>
     .replace(/ /g, ' ')
     .replace(/[ \t]+/g, ' ');
 
+/**
+ * Opens a menu group's submenu.
+ *
+ * The events are dispatched rather than driven with a real pointer move: a
+ * hidden window does no compositor hit-testing, so `sendInputEvent` mouseMove
+ * never produces the enter event a hover depends on. What is under test here
+ * is the component's own reaction to that event, which is the part this
+ * project owns.
+ */
+const openSubmenu = (win, groupName) =>
+  win.webContents.executeJavaScript(`
+    (() => {
+      const row = [...document.querySelectorAll('[role="menu"] [role="menuitem"]')]
+        .filter(item => item.getAttribute('aria-haspopup') === 'menu')
+        .find(item => item.textContent.trim().startsWith(${JSON.stringify(
+          groupName
+        )}));
+      if (!row) return Promise.resolve({ error: 'no-group' });
+      row.parentElement.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+      row.parentElement.dispatchEvent(new MouseEvent('mouseenter', { bubbles: false }));
+      return new Promise(resolve => setTimeout(() => resolve({
+        expanded: row.getAttribute('aria-expanded') === 'true',
+        items: [...document.querySelectorAll('[role="menu"] button[role="menuitem"]')]
+          .map(node => node.textContent.trim())
+      }), 250));
+    })()
+  `);
+
 app.commandLine.appendSwitch('disable-gpu');
 
 // Privileged schemes must be declared before the app is ready, exactly as
@@ -98,6 +126,13 @@ setTimeout(() => bail('\nFAILED: verification timed out'), HARD_TIMEOUT_MS);
 
 process.on('uncaughtException', error =>
   bail('\nFAILED: ' + (error?.stack || error))
+);
+
+// Without this, a throw inside the async main body became an unhandled
+// rejection: the script simply stopped, and the only signal was the hard
+// timeout, which says nothing about what actually went wrong.
+process.on('unhandledRejection', reason =>
+  bail('\nFAILED (unhandled rejection): ' + (reason?.stack || reason))
 );
 
 let currentWindow = null;
@@ -460,7 +495,7 @@ app.whenReady().then(async () => {
       const panes = document.querySelectorAll(${JSON.stringify(PANES)});
       const pane = panes[2];
       return {
-        entries: (document.querySelector('.h-6') || {}).innerText || '',
+        entries: (document.querySelector('[role="contentinfo"]') || {}).innerText || '',
         blocks: pane ? pane.querySelectorAll('.absolute.inset-x-0.px-4').length : -1,
         nodes: pane ? pane.querySelectorAll('*').length : -1
       };
@@ -659,7 +694,91 @@ app.whenReady().then(async () => {
     `the reopened tab does not hold the shared code: ${JSON.stringify(reopened.editor)}`
   );
 
+
+  /**
+   * The in-app menu. The native menu is never drawn on a frameless window, so
+   * this is the only browsable surface for the commands, and it is built from
+   * the command registry rather than from a second list.
+   */
+  const menuState = await win.webContents.executeJavaScript(`
+    (() => {
+      const button = document.querySelector('button[aria-label="Application menu"]');
+      if (!button) return Promise.resolve({ error: 'no-menu-button' });
+      button.click();
+      // The click sets state; React has not rendered the menu in this tick.
+      return new Promise(resolve => setTimeout(() => resolve({
+        groups: [...document.querySelectorAll('[role="menu"] [role="menuitem"]')]
+          .filter(node => node.getAttribute('aria-haspopup') === 'menu')
+          .map(node => node.textContent.trim())
+      }), 250));
+    })()
+  `);
+  console.log('menu   : groups =', JSON.stringify(menuState.groups || menuState.error));
+
+  expect(!menuState.error, 'the menu button was not found: ' + menuState.error);
+  expect(
+    (menuState.groups || []).includes('Run') &&
+      (menuState.groups || []).includes('File') &&
+      (menuState.groups || []).includes('Window'),
+    'the menu is missing command groups: ' + JSON.stringify(menuState.groups)
+  );
+
+  // Hovering a group has to open its submenu, which is how the menu is
+  // navigated at all.
+  const opened = await openSubmenu(win, 'Run');
+  const items = opened.items || [];
+  console.log('menu   : Run submenu =', JSON.stringify(items));
+
+  expect(!opened.error, 'the Run group row was not found: ' + opened.error);
+  expect(opened.expanded, 'the group row did not report itself as expanded');
+  expect(
+    items.some(text => text.startsWith('Clear output')),
+    'hovering a group did not open its submenu: ' + JSON.stringify(items)
+  );
+  expect(
+    items.some(text => /Ctrl/.test(text)),
+    'submenu entries do not show their keyboard binding'
+  );
+
+  // Escape has to close it, since it covers the editor.
+  await win.webContents.executeJavaScript(`
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+    ); true
+  `);
+  await sleep(300);
+  const closed = await win.webContents.executeJavaScript(
+    `document.querySelectorAll('[role="menu"]').length === 0`
+  );
+  expect(closed, 'Escape did not close the menu');
+
+  // The window icon has to exist where main.cjs looks for it, or the taskbar
+  // falls back to the host executable's icon, which is how this was found.
+  expect(
+    fs.existsSync(path.join(ROOT, 'icon.ico')),
+    'icon.ico is missing from the location main.cjs points the window at'
+  );
+
   if (SHOT) {
+    await win.webContents.executeJavaScript(
+      `document.querySelector('button[aria-label="Application menu"]').click(); true`
+    );
+    await sleep(400);
+    const shown = await openSubmenu(win, 'Run');
+    await sleep(500);
+    // Confirmed open at capture time, so a picture without the submenu means
+    // the hidden window composited late rather than the menu not working.
+    console.log(
+      'menu   : submenu open for the screenshot =',
+      shown.expanded === true
+    );
+    const withMenu = await win.webContents.capturePage();
+    fs.writeFileSync(
+      path.join(ROOT, 'build', 'verify-app-menu.png'),
+      withMenu.toPNG()
+    );
+    console.log('screenshot: build/verify-app-menu.png');
+
     for (const [name, value] of [['light', 'light'], ['dark', 'dark']]) {
       await setTheme(value);
       await sleep(800);

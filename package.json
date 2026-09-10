@@ -68,6 +68,7 @@
     "files": [
       "build/**/*",
       "electron/**/*",
+      "icon.ico",
       "main.cjs",
       "preload.cjs",
       "package.json"

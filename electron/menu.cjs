@@ -151,9 +151,10 @@ const build = getWindow => {
 };
 
 /**
- * The window is frameless, so the menu bar is hidden. It is still installed
- * because that is what gives the whole window working accelerators and
- * clipboard roles; on Windows and Linux it can be revealed with Alt.
+ * The window is frameless, so this menu bar is never drawn: on Windows the bar
+ * belongs to the frame. It is still installed because that is what gives the
+ * whole window its accelerators and clipboard roles. The browsable copy lives
+ * in the title bar, in src/components/MenuBar.
  */
 const install = getWindow => {
   const menu = build(getWindow);

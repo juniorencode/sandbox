@@ -2,6 +2,7 @@ import PropTypes from 'prop-types';
 import { useEffect, useRef, useState } from 'react';
 import { GoPlus } from 'react-icons/go';
 import { IoClose } from 'react-icons/io5';
+import { MenuBar } from '../MenuBar';
 import { windowControls } from '../../platform';
 import './TabBar.css';
 
@@ -22,7 +23,8 @@ export const TabBar = ({
   onCreate,
   onRename,
   onMove,
-  newTabHint
+  newTabHint,
+  commands
 }) => {
   const [renamingId, setRenamingId] = useState(null);
   const [draft, setDraft] = useState('');
@@ -89,8 +91,10 @@ export const TabBar = ({
         ></button>
       </div>
 
+      <MenuBar commands={commands} />
+
       <div
-        className="ml-[10px] flex w-[20px] items-center justify-center bg-contain bg-center bg-no-repeat"
+        className="ml-[6px] flex w-[20px] items-center justify-center bg-contain bg-center bg-no-repeat"
         style={{ backgroundImage: `url('favicon.png')` }}
       ></div>
 
@@ -178,5 +182,6 @@ TabBar.propTypes = {
   onCreate: PropTypes.func.isRequired,
   onRename: PropTypes.func.isRequired,
   onMove: PropTypes.func.isRequired,
-  newTabHint: PropTypes.string
+  newTabHint: PropTypes.string,
+  commands: PropTypes.array.isRequired
 };
