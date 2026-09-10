@@ -48,6 +48,9 @@ const createWindow = () => {
   mainWindow = new BrowserWindow({
     ...bounds,
     frame: false,
+    // Without this the window inherits the running executable's icon, which
+    // unpackaged is electron.exe: the taskbar showed Electron's own logo.
+    icon: path.join(__dirname, 'icon.ico'),
     // Created hidden and shown on ready-to-show, which removes the white flash
     // a frameless window paints before the renderer has anything to draw.
     show: false,
@@ -87,6 +90,17 @@ const createWindow = () => {
     mainWindow = null;
   });
 };
+
+/**
+ * Identifies the app to Windows.
+ *
+ * Without it the taskbar groups the window under the host executable rather
+ * than under Sandbox, and notifications are attributed to Electron. It has to
+ * be set before any window exists.
+ */
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.juniorencode.sandbox');
+}
 
 app.whenReady().then(() => {
   windowState = createWindowState(app.getPath('userData'), {
