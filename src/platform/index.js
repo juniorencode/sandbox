@@ -84,7 +84,9 @@ export const windowControls = {
   isMaximized: async () => {
     const result = await attempt(() => bridge?.window.isMaximized());
     return result === true;
-  }
+  },
+  reload: () => (bridge ? bridge.window.reload() : window.location.reload()),
+  toggleDevTools: () => bridge?.window.toggleDevTools()
 };
 
 export const workspace = {

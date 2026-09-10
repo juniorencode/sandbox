@@ -57,7 +57,11 @@ export const StatusBar = ({
   onOpenPalette,
   onOpenSettings
 }) => (
-  <div className="flex h-6 shrink-0 items-center gap-3 border-t border-line bg-chrome px-3 text-[12px] text-muted select-none">
+  <div
+    className="flex h-6 shrink-0 items-center gap-3 border-t border-line bg-chrome px-3 text-[12px] text-muted select-none"
+    role="contentinfo"
+    aria-label="Run status"
+  >
     <span className={`flex items-center gap-1 ${TONE[status] ?? ''}`}>
       <VscCircleFilled size={8} />
       {LABEL[status] ?? status}

@@ -52,6 +52,15 @@ const register = (
     withWindow(win => win.isMaximized())
   );
 
+  // The native View menu owns Ctrl+R and Ctrl+Shift+I, but the window is
+  // frameless so that menu is never drawn. These give the in-app menu the same
+  // two actions without competing for the accelerators.
+  ipcMain.on('window:reload', withWindow(win => win.webContents.reload()));
+  ipcMain.on(
+    'window:toggleDevTools',
+    withWindow(win => win.webContents.toggleDevTools())
+  );
+
   // --- workspace -----------------------------------------------------------
 
   ipcMain.handle('workspace:read', () => {

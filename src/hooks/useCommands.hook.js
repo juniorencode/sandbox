@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { windowControls } from '../platform';
 
 /**
  * One registry for everything the app can do.
@@ -191,6 +192,30 @@ export const useCommands = ({
         title: 'Show Node mode packages folder',
         group: 'Workspace',
         run: fileActions.showNodeFolder
+      },
+      {
+        id: 'window.reload',
+        title: 'Reload window',
+        group: 'Window',
+        run: windowControls.reload
+      },
+      {
+        id: 'window.devTools',
+        title: 'Toggle developer tools',
+        group: 'Window',
+        run: windowControls.toggleDevTools
+      },
+      {
+        id: 'window.minimize',
+        title: 'Minimize window',
+        group: 'Window',
+        run: windowControls.minimize
+      },
+      {
+        id: 'window.maximize',
+        title: 'Maximize or restore window',
+        group: 'Window',
+        run: windowControls.maximize
       },
       {
         id: 'app.checkUpdates',

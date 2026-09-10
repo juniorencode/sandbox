@@ -432,6 +432,7 @@ const App = () => {
         onRename={workspace.renameTab}
         onMove={workspace.moveTab}
         newTabHint={hints.newTab}
+        commands={commands}
       />
 
       <UpdateBanner
