@@ -2,7 +2,7 @@
   "name": "sandbox",
   "author": "Carlos Junior Ramos Vásquez",
   "description": "Sandbox is a hot-reloading scratchpad for JavaScript and TypeScript. Output is anchored to the line that produced it, values render as inspectable trees, npm packages load from a local cache, and a tab can be evaluated in a real Node process.",
-  "version": "2.1.2",
+  "version": "2.2.0",
   "type": "module",
   "engines": {
     "node": "^24.15.0 || >=26.0.0"
